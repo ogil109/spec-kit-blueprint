@@ -1,0 +1,15 @@
+# Blueprint extension configuration
+# Installed to: .specify/extensions/blueprint/blueprint-config.yml
+# Layered: extension defaults < this file < blueprint-config.local.yml < SPECKIT_BLUEPRINT_* env
+
+blueprint:
+  # Where the blueprint document lives, relative to the repo root. The oracle
+  # auto-detects docs/blueprint.md, docs/overview.md, or .specify/memory/blueprint.md
+  # if this is unset.
+  path: ".specify/memory/blueprint.md"
+
+distill:
+  # Distillation is lossy. When true, distill shows the before/after of the
+  # affected section and asks before overwriting (interactive). Set false to let
+  # fully autonomous runs distill without a checkpoint.
+  require_confirmation: true

@@ -1,0 +1,56 @@
+schema_version: "1.0"
+
+extension:
+  id: blueprint
+  name: "Blueprint — Living Architecture Map"
+  version: "1.0.0"
+  description: "A living, collapsing architecture map for spec-driven projects + a deterministic CI gate that flags when a spec, the map, or the code drift apart. The same externalized state + oracle doubles as an autonomous waterfall harness for multi-spec agent sessions. Greenfield or brownfield."
+  category: process
+  effect: read-write
+  author: ogil109
+  repository: https://github.com/ogil109/spec-kit-extensions
+  license: MIT
+  homepage: https://github.com/ogil109/spec-kit-extensions/tree/main/blueprint
+
+requires:
+  speckit_version: ">=0.10.0"
+
+provides:
+  commands:
+    - name: speckit.blueprint.init
+      file: commands/speckit.blueprint.init.md
+      description: "Scaffold the architecture map — seed from a design doc (greenfield) or reverse-map existing code (--from-code, brownfield)"
+    - name: speckit.blueprint.status
+      file: commands/speckit.blueprint.status.md
+      description: "Show the map's coherence state: detailed vs settled sections, distill drift, and where each spec stands"
+    - name: speckit.blueprint.distill
+      file: commands/speckit.blueprint.distill.md
+      description: "Collapse a finished spec's section to an at-a-glance digest + pointer, and stamp the slice's code baseline so drift can be detected"
+    - name: speckit.blueprint.remap
+      file: commands/speckit.blueprint.remap.md
+      description: "Re-derive a section from current code and refresh its git baseline — resync the map after out-of-band code changes (run the check gate in CI to detect them)"
+
+  config:
+    - name: "blueprint-config.yml"
+      template: "config-template.yml"
+      description: "Blueprint location and distillation behavior"
+      required: false
+
+  scripts:
+    - "scripts/bash/blueprint-state.sh"
+    - "scripts/powershell/blueprint-state.ps1"
+
+tags:
+  - "blueprint"
+  - "architecture"
+  - "coherence"
+  - "drift"
+  - "brownfield"
+  - "autonomous"
+  - "ci"
+
+defaults:
+  blueprint:
+    path: ".specify/memory/blueprint.md"
+  distill:
+    require_confirmation: true
