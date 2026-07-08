@@ -67,8 +67,11 @@ restate" closer. Match that shape; scale the digest to the slice.
 
 1. Read `spec.md` (and `plan.md` if present). Extract the digest: the slice's role
    in one or two sentences, then the handful of load-bearing decisions/constants.
-2. Rewrite the section in place: ownership banner (`> **Distilled — owned by
-   `specs/<slug>`.**`) + the prose role + the bulleted at-a-glance digest + the
+2. Rewrite the section in place: **set its provenance marker** to
+   `<!-- blueprint:section state=distilled owner=specs/<slug> -->` (replacing the
+   previous `state=detailed`/`state=code` marker — this is the extension's deterministic
+   record that it processed the section), then the ownership banner (`> **Distilled —
+   owned by `specs/<slug>`.**`) + the prose role + the bulleted at-a-glance digest + the
    "see the spec" closer. Compute a correct relative pointer to the spec.
 3. **Stamp the implementation footprint (so code drift on this slice is caught).**
    If the slice has shipped code, note where it lives — the directory/directories

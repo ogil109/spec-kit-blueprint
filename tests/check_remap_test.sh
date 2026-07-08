@@ -21,6 +21,7 @@ BP="$R/blueprint.md"
 cat > "$BP" <<'EOF'
 # Blueprint
 ## 1. Payments
+<!-- blueprint:section state=code -->
 > **Distilled — owned by code at `src/payments/`.** (no spec yet)
 <!-- blueprint:code path=src/payments sha=NONE -->
 Charges via Stripe.
@@ -62,7 +63,7 @@ R2="$TMP/repo2"; mkdir -p "$R2/specs/001-foo" "$R2/.specify"
 git -C "$R2" init -q; git -C "$R2" config user.email t@t; git -C "$R2" config user.name t
 printf 'spec\n' > "$R2/specs/001-foo/spec.md"; printf 'plan\n' > "$R2/specs/001-foo/plan.md"
 printf -- '- [x] done\n' > "$R2/specs/001-foo/tasks.md"
-printf '# BP\n## Foo\n> **Detailed (unspecced)** — holding pen.\n' > "$R2/blueprint.md"
+printf '# BP\n## Foo\n<!-- blueprint:section state=detailed -->\n> **Detailed (unspecced)** — holding pen.\n' > "$R2/blueprint.md"
 out="$(bash "$ORACLE" check --root "$R2" --blueprint "$R2/blueprint.md" 2>&1)"; rc=$?
 { [ "$rc" -ne 0 ] && echo "$out" | grep -q DRIFT; } && ok "distill drift fails check" \
   || bad "distill drift fails check" "rc=$rc $out"
@@ -78,6 +79,7 @@ printf -- '- [x] done\n' > "$R3/specs/007-orders/tasks.md"
 cat > "$R3/blueprint.md" <<'EOF'
 # BP
 ## Orders
+<!-- blueprint:section state=distilled owner=specs/007-orders -->
 > **Distilled — owned by `specs/007-orders`** (implemented at `src/orders/`).
 <!-- blueprint:code path=src/orders sha=NONE -->
 Places orders.

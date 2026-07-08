@@ -24,17 +24,17 @@ mk_clarify()   { sed -i '/NEEDS CLARIFICATION/d' "$1/specs/$2/spec.md"; }
 mk_plan()      { : > "$1/specs/$2/plan.md"; }
 mk_tasks()     { printf -- '- [ ] t1\n' > "$1/specs/$2/tasks.md"; }
 mk_implement() { printf -- '- [x] t1\n' > "$1/specs/$2/tasks.md"; }
-mk_distill()   { # blueprint slug — flip that section's banner to settled+pointer
-  sed -i -E "s|^>[[:space:]]*\*\*Detailed.*\(slug: ${2}\).*|> **Distilled — owned by \`specs/${2}\`.**|" "$1"
+mk_distill()   { # blueprint slug — flip that section's marker detailed -> distilled
+  sed -i -E "s|<!-- blueprint:section state=detailed slug=${2} -->|<!-- blueprint:section state=distilled owner=specs/${2} slug=${2} -->|" "$1"
 }
-# pick the next Detailed section (banner carries "(slug: NNN-x)") with no spec dir yet
+# pick the next detailed section (marker carries "slug=NNN-x") with no spec dir yet
 next_detailed_slug() {
   local bp="$1" root="$2" line slug
   while IFS= read -r line; do
-    slug=$(echo "$line" | sed -nE 's/.*\(slug: ([^)]*)\).*/\1/p')
+    slug=$(echo "$line" | sed -nE 's/.*state=detailed slug=([^ ]+) -->.*/\1/p')
     [ -n "$slug" ] || continue
     [ -d "$root/specs/$slug" ] || { echo "$slug"; return; }
-  done < <(grep -E '^>[[:space:]]*\*\*Detailed.*\(slug:' "$bp")
+  done < <(grep -E '<!-- blueprint:section state=detailed slug=' "$bp")
   echo ""
 }
 
@@ -87,10 +87,10 @@ newproj() { # name -> root with a 2-section detailed blueprint
   cat > "$d/blueprint.md" <<'BP'
 # Demo Blueprint
 ## 1. Auth
-> **Detailed (unspecced)** — holding pen. (slug: 001-auth)
+<!-- blueprint:section state=detailed slug=001-auth -->
 body
 ## 2. Billing
-> **Detailed (unspecced)** — holding pen. (slug: 002-billing)
+<!-- blueprint:section state=detailed slug=002-billing -->
 body
 BP
   echo "$d"

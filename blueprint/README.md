@@ -29,8 +29,12 @@ removes the duplication and makes the drift **detectable**.
 ## The coherence gate (the core)
 
 The map is only worth trusting if it's provably current. `check` is a **deterministic,
-CI-friendly** gate (no LLM) that exits non-zero on either drift signal:
+CI-friendly** gate (no LLM) that exits non-zero on any drift signal:
 
+- **Unmanaged sections** — the extension stamps every section it processes with a
+  provenance marker (`<!-- blueprint:section state=… -->`). A section with **no** marker
+  was added or edited by a human and the extension hasn't processed it, so it's reported
+  and treated as pending backlog — the map can never silently read as "done". → run `init`.
 - **Distill drift** — a built spec the map hasn't collapsed yet (e.g. a spec born from
   an external tracker, not the blueprint). → run `distill`.
 - **Code staleness** — any section that maps a `src/` area records a git baseline
@@ -128,11 +132,23 @@ inside a step.
 
 ## The blueprint document
 
-Prose-first — no rigid tags. An annotated table of contents is the index +
-architecture map; each section opens with a `> **Detailed (unspecced)**`,
-`> **Distilled — owned by `specs/<slug>`**`, or `> **Distilled — owned by code at
-`src/…`**` banner. Sections that map code carry a `<!-- blueprint:code path=… sha=… -->`
-baseline marker. It works on organically-grown overview docs, not just generated ones.
+An annotated table of contents is the index + architecture map. Each managed section
+carries a **provenance marker** under its heading — the extension's deterministic record
+of what it has processed:
+
+```markdown
+## 3. Payments
+<!-- blueprint:section state=distilled owner=specs/007-refunds -->
+> **Distilled — owned by `specs/007-refunds`** (implemented at `src/payments/`).
+<!-- blueprint:code path=src/payments sha=a1b2c3 -->
+```
+
+States are `detailed` (holding pen), `distilled owner=specs/<slug>`, or `code`
+(brownfield). Sections that map code also carry a git-baseline marker. The human-readable
+`> **Detailed …**` / `> **Distilled …**` banners are cosmetic — the **markers** are what
+the oracle reads, so a hand-written banner can never fool it. `init` is idempotent: it
+stamps unmanaged sections and leaves managed ones alone, so it also **formalizes an
+existing master doc** that already half-follows the pattern.
 
 ## Honest boundaries
 

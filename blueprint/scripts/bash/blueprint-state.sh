@@ -116,16 +116,26 @@ if [ -d "$SPECS_DIR" ]; then
   done
 fi
 
-# ── blueprint section states (holding-pen vs settled) ─────────────────────────
-# A section is DETAILED (holding pen, design pending) or SETTLED (distilled — owned
-# by a spec OR by existing code). Greenfield maps start all-detailed and collapse;
-# brownfield maps (init --from-code) start all-settled-against-code and selectively
-# re-expand. Banners are prose, one per section (see the template).
-DETAILED_COUNT=0; OWNED_COUNT=0
+# ── section provenance (deterministic: read machine markers, not prose banners) ─
+# The extension stamps every section it manages with a marker under its heading:
+#   <!-- blueprint:section state=detailed -->
+#   <!-- blueprint:section state=distilled owner=specs/<slug> -->
+#   <!-- blueprint:section state=code -->
+# Markers are AUTHORITATIVE — they are the extension's record of what it has processed.
+# A level-2 heading with NO marker is UNMANAGED (external / not yet run through init)
+# and counts as pending backlog, so a raw or hand-edited doc never silently reads as
+# "done" just because a human left a section un-marked. Prose banners are cosmetic.
+DETAILED_COUNT=0; SETTLED_COUNT=0; UNMANAGED_COUNT=0
 if [ -f "$BLUEPRINT" ]; then
-  DETAILED_COUNT=$(grep -cE '^>[[:space:]]*\*\*Detailed' "$BLUEPRINT" 2>/dev/null || true)
-  OWNED_COUNT=$(grep -cE '^>[[:space:]]*\*\*Distilled' "$BLUEPRINT" 2>/dev/null || true)
+  DETAILED_COUNT=$(grep -cE '<!-- blueprint:section state=detailed' "$BLUEPRINT" 2>/dev/null || true)
+  SETTLED_COUNT=$(grep -cE '<!-- blueprint:section state=(distilled|code)' "$BLUEPRINT" 2>/dev/null || true)
+  UNMANAGED_COUNT=$(awk '
+    /^## / { if (s && !m && !x) u++; h=tolower($0);
+             x=(h ~ /table of contents/ || h ~ /how this/ || h ~ /changelog/); s=1; m=0; next }
+    /<!-- blueprint:section/ { m=1 }
+    END { if (s && !m && !x) u++; print u+0 }' "$BLUEPRINT")
 fi
+BACKLOG_COUNT=$((DETAILED_COUNT + UNMANAGED_COUNT))
 
 # ── compute the single next action ────────────────────────────────────────────
 # Priority (autonomous waterfall — keep the blueprint honest, finish started work
@@ -140,16 +150,22 @@ if [ "${#DISTILL_DRIFT[@]}" -gt 0 ]; then
 elif [ "${#INFLIGHT_SLUG[@]}" -gt 0 ]; then
   NEXT_PHASE="${INFLIGHT_PHASE[0]}"; NEXT_SLUG="${INFLIGHT_SLUG[0]}"
   NEXT_REASON="in-flight slice; next build phase by artifact frontier"
-elif [ -f "$BLUEPRINT" ] && { [ "$DETAILED_COUNT" -gt 0 ] || [ "$OWNED_COUNT" -eq 0 ]; }; then
-  # Spec backlog: a detailed (unspecced) holding-pen section exists — or the doc has
-  # no banners at all (an organic overview), which we treat as all-backlog. Which
-  # section to specify is the agent's judgment.
+elif [ -f "$BLUEPRINT" ] && [ "$DETAILED_COUNT" -eq 0 ] && [ "$SETTLED_COUNT" -eq 0 ] && [ "$UNMANAGED_COUNT" -gt 0 ]; then
+  # The doc has sections but the extension has never processed it (zero markers) —
+  # e.g. a raw master doc. Don't guess its state; initialize it first.
+  NEXT_PHASE="init"
+  NEXT_REASON="blueprint not yet processed by the extension — run /speckit.blueprint.init (${UNMANAGED_COUNT} unmanaged section(s))"
+elif [ -f "$BLUEPRINT" ] && [ "$BACKLOG_COUNT" -gt 0 ]; then
+  # Backlog exists: a detailed (managed) section, or an unmanaged heading init hasn't
+  # processed yet. Which to specify is the agent's judgment.
   NEXT_PHASE="specify"; NEXT_SLUG=""
   NEXT_REASON="no in-flight work; specify the next detailed subsystem from the blueprint"
+elif [ -f "$BLUEPRINT" ] && [ "$SETTLED_COUNT" -gt 0 ]; then
+  # Every managed section is settled (owned by a spec or by code), nothing in flight.
+  NEXT_REASON="all sections settled (owned by a spec or by code) — no pending design (run /speckit.specify to start a slice, then distill it)"
 elif [ -f "$BLUEPRINT" ]; then
-  # Blueprint exists and every section is settled (owned by a spec or by code), with
-  # nothing in flight — the brownfield-adopted idle state. Re-expand a slice to work on.
-  NEXT_REASON="all sections owned by a spec or by code — no pending design (run /speckit.specify to start a slice, then distill it)"
+  # File exists but has no sections at all — an empty blueprint.
+  NEXT_PHASE="specify"; NEXT_REASON="blueprint has no subsystem sections yet — add some, or run /speckit.blueprint.init"
 fi
 HAS_NEXT=true; [ "$NEXT_PHASE" = "done" ] && HAS_NEXT=false
 
@@ -158,6 +174,10 @@ HAS_NEXT=true; [ "$NEXT_PHASE" = "done" ] && HAS_NEXT=false
 # (distill drift), (2) a code-owned section whose code moved/vanished since mapping.
 if [ "$CMD" = "check" ]; then
   issues=0
+  if [ "$UNMANAGED_COUNT" -gt 0 ]; then
+    echo "UNMANAGED  ${UNMANAGED_COUNT} section(s) the extension hasn't processed (external/manual)   → blueprint.init"
+    issues=$((issues+1))
+  fi
   if [ "${#DISTILL_DRIFT[@]}" -gt 0 ]; then
     for s in "${DISTILL_DRIFT[@]}"; do
       echo "DRIFT      built spec not reflected in blueprint: $s   → blueprint.distill $s"
@@ -220,7 +240,7 @@ fi
 echo "Blueprint waterfall — state"
 echo "  root:      $ROOT"
 echo "  blueprint: ${BLUEPRINT:-<none — run blueprint.init>} ${BLUEPRINT:+(${BUILT_COUNT} built, $(( ${#INFLIGHT_SLUG[@]} )) in-flight)}"
-[ -f "$BLUEPRINT" ] && echo "  sections:  ${DETAILED_COUNT} detailed (holding pen), ${OWNED_COUNT} settled (owned by spec or code)"
+[ -f "$BLUEPRINT" ] && echo "  sections:  ${DETAILED_COUNT} detailed, ${SETTLED_COUNT} settled, ${UNMANAGED_COUNT} unmanaged (not yet processed by init)"
 echo
 echo "In-flight (spec exists, build not complete):"
 if [ "${#INFLIGHT_SLUG[@]}" -eq 0 ]; then echo "  (none)"; else

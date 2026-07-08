@@ -25,6 +25,14 @@ architecture map plus a deterministic CI gate that keeps it honest.
   never back-synced. Prose-first; works on organically-grown overview docs.
 - **Deterministic state oracle** (`scripts/bash/blueprint-state.sh`) — reads `specs/`
   + the blueprint; no LLM in the reliable path. Tests in `tests/oracle_test.sh`.
+- **Deterministic section provenance.** Every section the extension processes is stamped
+  with `<!-- blueprint:section state=detailed|distilled|code [owner=specs/<slug>] -->`.
+  Markers are authoritative — the oracle reads them, not prose banners — so the extension
+  always knows what it processed vs. what a human added or edited. A heading with no
+  marker is *unmanaged*: reported by `check` and counted as pending backlog, so a raw or
+  hand-edited doc can never silently read as "done". `init` is idempotent and safe: it
+  stamps unmanaged sections, recognizes and preserves managed ones, and never deletes
+  content — which also lets it **formalize an existing master doc** in place.
 - **Coherence gate — keep the map honest no matter where a change comes from.**
   Sections that map a `src/` area carry a git baseline (`<!-- blueprint:code path=…
   sha=… -->`).

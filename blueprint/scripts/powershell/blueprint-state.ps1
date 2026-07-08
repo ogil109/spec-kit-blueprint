@@ -89,8 +89,27 @@ if (Test-Path $specsDir) {
   }
 }
 
+# section provenance: machine markers are authoritative; an unmarked ## heading is
+# UNMANAGED (external / not yet run through init) and counts as pending backlog.
+$detailedCount = 0; $settledCount = 0; $unmanagedCount = 0
+if ($Blueprint -and (Test-Path $Blueprint)) {
+  $detailedCount = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=detailed').Count
+  $settledCount  = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=(distilled|code)').Count
+  $s=$false; $m=$false; $x=$false
+  foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
+    if ($line -match '^## ') {
+      if ($s -and -not $m -and -not $x) { $unmanagedCount++ }
+      $h = $line.ToLower(); $x = ($h -match 'table of contents' -or $h -match 'how this' -or $h -match 'changelog')
+      $s = $true; $m = $false
+    } elseif ($line -match '<!-- blueprint:section') { $m = $true }
+  }
+  if ($s -and -not $m -and -not $x) { $unmanagedCount++ }
+}
+$backlogCount = $detailedCount + $unmanagedCount
+
 if ($Command -eq "check") {
   $issues = 0
+  if ($unmanagedCount -gt 0) { Write-Output "UNMANAGED  $unmanagedCount section(s) the extension hasn't processed (external/manual)   -> blueprint.init"; $issues++ }
   foreach ($s in $drift) { Write-Output "DRIFT      built spec not reflected in blueprint: $s   -> blueprint.distill $s"; $issues++ }
   if (Test-Git) {
     foreach ($m in (Get-CodeMarkers)) {
@@ -120,22 +139,19 @@ if ($Command -eq "restamp") {
   Write-Output "restamped $updated marker(s)"; exit 0
 }
 
-# blueprint section states: DETAILED (holding pen) vs SETTLED (owned by spec or code)
-$detailedCount = 0; $ownedCount = 0
-if ($Blueprint -and (Test-Path $Blueprint)) {
-  $detailedCount = @(Select-String -Path $Blueprint -Pattern '^>\s*\*\*Detailed').Count
-  $ownedCount    = @(Select-String -Path $Blueprint -Pattern '^>\s*\*\*Distilled').Count
-}
-
 $nextPhase = "done"; $nextSlug = ""; $reason = "backlog empty — nothing in specs/, nothing in flight"
 if ($drift.Count -gt 0) {
   $nextPhase = "distill"; $nextSlug = $drift[0]; $reason = "spec exists but blueprint still holds its detail"
 } elseif ($inflight.Count -gt 0) {
   $nextPhase = $inflight[0].phase; $nextSlug = $inflight[0].slug; $reason = "in-flight slice; next build phase by artifact frontier"
-} elseif (($Blueprint -and (Test-Path $Blueprint)) -and ($detailedCount -gt 0 -or $ownedCount -eq 0)) {
+} elseif (($Blueprint -and (Test-Path $Blueprint)) -and $detailedCount -eq 0 -and $settledCount -eq 0 -and $unmanagedCount -gt 0) {
+  $nextPhase = "init"; $reason = "blueprint not yet processed by the extension — run /speckit.blueprint.init ($unmanagedCount unmanaged section(s))"
+} elseif (($Blueprint -and (Test-Path $Blueprint)) -and $backlogCount -gt 0) {
   $nextPhase = "specify"; $reason = "no in-flight work; specify the next detailed subsystem from the blueprint"
+} elseif (($Blueprint -and (Test-Path $Blueprint)) -and $settledCount -gt 0) {
+  $reason = "all sections settled (owned by a spec or by code) — no pending design (run /speckit.specify to start a slice, then distill it)"
 } elseif ($Blueprint -and (Test-Path $Blueprint)) {
-  $reason = "all sections owned by a spec or by code — no pending design (run /speckit.specify to start a slice, then distill it)"
+  $nextPhase = "specify"; $reason = "blueprint has no subsystem sections yet — add some, or run /speckit.blueprint.init"
 }
 $hasNext = ($nextPhase -ne "done")
 
@@ -153,7 +169,7 @@ if ($Command -eq "next") {
 Write-Output "Blueprint waterfall — state"
 Write-Output "  root:      $Root"
 Write-Output "  blueprint: $(if($Blueprint){$Blueprint}else{'<none — run blueprint.init>'}) ($builtCount built, $($inflight.Count) in-flight)"
-if ($Blueprint -and (Test-Path $Blueprint)) { Write-Output "  sections:  $detailedCount detailed (holding pen), $ownedCount settled (owned by spec or code)" }
+if ($Blueprint -and (Test-Path $Blueprint)) { Write-Output "  sections:  $detailedCount detailed, $settledCount settled, $unmanagedCount unmanaged (not yet processed by init)" }
 Write-Output ""
 Write-Output "In-flight (spec exists, build not complete):"
 if ($inflight.Count -eq 0) { Write-Output "  (none)" } else { $inflight | ForEach-Object { Write-Output "  - $($_.slug)  → next: $($_.phase)" } }

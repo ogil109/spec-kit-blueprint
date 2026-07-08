@@ -33,15 +33,20 @@
   been specced/built; `src/...` is authoritative for what already exists; this
   document references both by path, and the `check` gate keeps the references honest.
 
-  SECTION CONVENTION (prose, not tags):
-    - DETAILED:        > **Detailed (unspecced)** — holding pen.
-    - SETTLED by spec: > **Distilled — owned by `specs/<slug>`.**
-    - SETTLED by code: > **Distilled — owned by code at `src/...`.** (no spec yet)
-      Each settled banner is followed by a short role sentence, a bulleted
-      at-a-glance digest of the load-bearing mechanics, and a "see the owner,
-      don't restate" closer.
-    Partial distillation is fine: distill the specced sub-part, keep the rest
-    detailed with a note naming the future spec it's earmarked for.
+  SECTION CONVENTION. Every section the extension manages carries a machine-readable
+  PROVENANCE MARKER directly under its heading — this is the extension's authoritative
+  record of what it has processed (the oracle reads markers, NOT prose). A heading with
+  no marker is UNMANAGED (external / not yet run through init) and is treated as pending
+  backlog. The human-readable banner under the marker is cosmetic.
+    - DETAILED:        <!-- blueprint:section state=detailed -->
+                       > **Detailed (unspecced)** — holding pen.
+    - SETTLED by spec: <!-- blueprint:section state=distilled owner=specs/<slug> -->
+                       > **Distilled — owned by `specs/<slug>`.**
+    - SETTLED by code: <!-- blueprint:section state=code -->
+                       > **Distilled — owned by code at `src/...`.** (no spec yet)
+      Each settled banner is followed by a short role sentence, a bulleted at-a-glance
+      digest, and a "see the owner, don't restate" closer.
+    Partial distillation is fine: distill the specced sub-part, keep the rest detailed.
 
   AUTHORITY: feature spec = source of truth for its slice; blueprint = map +
   holding pen that defers to specs; constitution = principles.
@@ -60,6 +65,7 @@ the sections agree. Keep it current (the /speckit.blueprint.* commands do this).
 
 ## 1. [Subsystem A]
 
+<!-- blueprint:section state=detailed -->
 > **Detailed (unspecced)** — holding pen. Full design lives here until a feature
 > spec takes it over. This is the backlog you specify next.
 
@@ -76,6 +82,7 @@ mechanics, the things a future spec will formalize].
 
 ## 2. [Subsystem B]
 
+<!-- blueprint:section state=distilled owner=specs/00X-slug -->
 > **Distilled — owned by `specs/00X-slug` ([spec](../../specs/00X-slug/spec.md))**
 > (implemented at `src/[area]/`). The full detail lives in that spec, which is the
 > source of truth. This is a summary + index.
@@ -93,6 +100,7 @@ Do not restate those details here — this section indexes the spec.
 
 ## 3. [Subsystem C]  — brownfield example
 
+<!-- blueprint:section state=code -->
 > **Distilled — owned by code at `src/[area]/`.** (no spec yet) The implementation
 > is the source of truth; this section maps it. To change it, `/speckit.specify` the
 > area as usual and `distill` it when the spec ships.

@@ -1,12 +1,17 @@
 ---
-description: "Scaffold the blueprint — the project's backlog + architecture map — seeding from a design doc (greenfield) or from the existing codebase (brownfield)"
+description: "Initialize or normalize the blueprint — the project's architecture map — stamping each section's provenance marker; idempotent and safe. Seeds from a design doc (greenfield) or existing code (--from-code, brownfield)."
 ---
 
 # Initialize Blueprint
 
-Create the project **blueprint**: the authoritative, decreasing-detail map your
-spec-driven work builds from and stays coherent against. It is at once the backlog
-of unspecced design, the architecture map, and the index of feature specs.
+Create or **normalize** the project **blueprint**: the authoritative, decreasing-detail
+map your spec-driven work builds from and stays coherent against. It is at once the
+backlog of unspecced design, the architecture map, and the index of feature specs.
+
+This command is **idempotent and safe**: it never deletes content. It reads each
+section, works out its true state, and stamps a machine-readable **provenance marker**
+so the extension has a deterministic record of what it has processed. Re-running it is a
+no-op on sections that are already marked and accurate.
 
 ## User Input
 
@@ -14,86 +19,85 @@ of unspecced design, the architecture map, and the index of feature specs.
 $ARGUMENTS
 ```
 
-`$ARGUMENTS` selects the **on-ramp**:
+`$ARGUMENTS` selects the **on-ramp** (all idempotent):
 
-- **A design doc path** (`docs/master-spec.md`, `docs/overview.md`) — *greenfield*:
-  import it as the holding pen. Sections start **detailed** and collapse as you build.
-- **`--from-code`** (optionally followed by a path scope, e.g. `--from-code src/`) —
-  *brownfield*: reverse-map the existing codebase into a blueprint whose sections are
-  already **settled (owned by code)**. This is the "what is this system, how does it
-  fit" map for an existing repo.
-- **Empty** — scaffold an empty blueprint from the template to fill in by hand.
+- **A doc path** (`docs/overview.md`, `docs/master-spec.md`) — *greenfield / formalize*:
+  use it as the blueprint and stamp/normalize every section. Ideal for an existing
+  master doc that already half-follows the pattern.
+- **`--from-code`** (optionally `--from-code src/`) — *brownfield*: reverse-map the
+  codebase into code-owned sections.
+- **Empty** — scaffold an empty blueprint from the template, or normalize the
+  already-configured/auto-detected blueprint.
 
 ## Resolve
 
 1. Repo root = nearest ancestor with `.specify/`.
-2. Blueprint path: `blueprint-config.yml` → `blueprint.path` (default
-   `.specify/memory/blueprint.md`; many teams prefer `docs/blueprint.md`). Call it
-   `BLUEPRINT`.
+2. `BLUEPRINT` = `blueprint-config.yml` → `blueprint.path`, else the doc path in
+   `$ARGUMENTS`, else auto-detect (`docs/blueprint.md`, `docs/overview.md`,
+   `.specify/memory/blueprint.md`), else create from the template at the config path.
+   If a doc path was given, that doc **is** the blueprint (normalize it in place); do
+   not silently create a second one.
 3. Template: `.specify/extensions/blueprint/templates/blueprint-template.md`.
 
-## Prerequisites
+## The provenance marker (the deterministic record)
 
-- If `BLUEPRINT` exists, **do not overwrite**. Report it and suggest
-  `__SPECKIT_COMMAND_BLUEPRINT_STATUS__`, then stop.
-- Create `BLUEPRINT`'s parent directory if needed.
+Every managed section carries a marker directly under its `## ` heading:
+
+- `<!-- blueprint:section state=detailed -->` — holding pen, design pending.
+- `<!-- blueprint:section state=distilled owner=specs/<slug> -->` — owned by a spec.
+- `<!-- blueprint:section state=code -->` — owned by existing code (brownfield).
+
+The marker is authoritative. A heading **with no marker** is *unmanaged* (external /
+not yet processed) — this run is what stamps it.
 
 ## Execution
 
-1. **Start from the template.** Fill `[PROJECT NAME]` and `[DATE]`. Keep the
-   "how this works" header and the prose section convention (Detailed vs Distilled
-   banners) — the commands and the oracle read prose, not tags.
+Ensure the doc has the template's "how this works" header (add it if missing; don't
+disturb existing content). Then, **for each `## ` section** (skip meta headings —
+Table of Contents, the header comment):
 
-2. **If a design doc was provided** (greenfield), import it as the holding pen:
-   - Split it into subsystem-sized sections; carry over the real design detail at
-     design altitude (decisions, thresholds, entities, contracts, open questions).
-     Do not invent content the seed lacks.
-   - **Cross-check `specs/`.** For each subsystem, if a feature spec already owns it,
-     scaffold that section already-**distilled** (digest + pointer) instead of
-     copying detail. Where a spec owns only part, distill that part and keep the
-     rest detailed (partial distillation). When ownership is ambiguous, leave it
-     detailed and note `[NEEDS CLARIFICATION: owning spec?]`.
+1. **Already marked?** If it has a `blueprint:section` marker, treat it as processed —
+   verify it's still accurate (e.g. `state=distilled owner=specs/X` and `specs/X`
+   exists) and leave it. Only correct it if clearly wrong. **Do not re-do or clobber.**
 
-3. **If `--from-code` was given** (brownfield), reverse-map the codebase:
-   - Walk the repo (respecting the optional path scope; skip vendored/build dirs).
-     Identify the real subsystems from the directory structure, entry points,
-     routes, and module boundaries — not file-by-file.
-   - Write each as a **settled "owned by code"** section: the `> **Distilled — owned
-     by code at \`src/<area>/\`.**` banner, a one/two-sentence role, an at-a-glance
-     digest of how it behaves *today* (key mechanics, entry points, data it owns),
-     and a "read the code for exact behavior" closer. **Map what exists; do not
-     invent intended behavior or redesign.**
-   - **Add a baseline marker** under each code-owned banner so the section can be
-     kept honest against future out-of-band code edits:
-     `<!-- blueprint:code path=src/<area> sha=NONE -->` (no trailing slash in `path`).
-   - **Cross-check `specs/`.** If a spec already owns an area, point the section at
-     the spec instead of (or in addition to) the code.
-   - After writing the blueprint, **record the baselines** by running the oracle's
-     `restamp` (this fills each `sha=NONE` with the code's current git hash):
-     `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
-     PowerShell port). Now `blueprint.check` can detect later code drift.
-   - The result is an all-settled map with no pending design — `status` will report
-     it idle. To change an area later, run `/speckit.specify` on it as usual; once
-     the spec ships, `distill` collapses its section and the `check` gate keeps it
-     honest.
+2. **Unmarked but already owned by a spec** (a hand-distilled section like a master
+   doc's — a `> **Distilled — owned by \`specs/<slug>\`**` banner or a clear reference
+   to `specs/<slug>`, or a `specs/<slug>` that plainly owns this subsystem): recognize
+   it, stamp `<!-- blueprint:section state=distilled owner=specs/<slug> -->`. If that
+   spec is **built**, also add its implementation-footprint baseline
+   `<!-- blueprint:code path=src/<area> sha=NONE -->` so code drift is caught later.
 
-4. **If no argument**, leave the example sections as a guide to replace.
+3. **Unmarked, brownfield (`--from-code`)**: map the code as it exists **today** (role
+   sentence + at-a-glance digest of mechanics/entry points; do not redesign). Stamp
+   `<!-- blueprint:section state=code -->` and `<!-- blueprint:code path=src/<area>
+   sha=NONE -->`.
 
-5. **Build the Table of Contents** so every section has one entry with its status
+4. **Unmarked, unspecced design** (a plain holding-pen section): stamp
+   `<!-- blueprint:section state=detailed -->`. Keep its full design detail in place.
+
+Add the cosmetic prose banner under the marker if it helps human readers; the marker,
+not the banner, is what the oracle reads. **Never invent content the source lacks, and
+never delete a section's design detail.**
+
+5. **Refresh the Table of Contents** so each section's status matches its marker
    (`detailed` / `distilled → specs/<slug>` / `owned by code → src/<area>`).
 
-6. **Write** `BLUEPRINT`. For a greenfield seed, do not delete the source — recommend
-   the author retire it once the blueprint is trusted, to keep a single source of truth.
+6. **Record code baselines.** Run the oracle's restamp to fill every `sha=NONE`:
+   `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
+   PowerShell port). Now `blueprint.check` can detect later code drift.
 
 ## Report Back
 
-- Path written; whether seeded and from where.
-- TOC summary: N sections — X detailed / Y settled (spec- or code-owned).
-- Next: run `__SPECKIT_COMMAND_BLUEPRINT_STATUS__` to see the map's state, and add
-  the `check` gate to CI so the map stays in sync as you build.
+- `BLUEPRINT` path; whether created, seeded, or normalized in place.
+- Section tally from the markers: N total — X detailed, Y settled (spec/code), and how
+  many were **newly stamped** this run vs already managed.
+- Next: `__SPECKIT_COMMAND_BLUEPRINT_STATUS__` for the worklist, and add the
+  `check` gate to CI so the map stays honest.
 
 ## Guardrails
 
-- Never overwrite an existing blueprint.
-- Never fabricate design detail not in the seed or codebase.
-- Keep the prose section convention and the header — downstream commands rely on it.
+- **Idempotent + non-destructive:** only add/normalize markers, banners, and the TOC.
+  Never delete design detail; never re-process an already-marked, accurate section.
+- Never fabricate design detail or code behavior not present in the source.
+- Every managed section must end with exactly one `blueprint:section` marker — that is
+  the extension's deterministic record of provenance.

@@ -48,6 +48,10 @@ For each targeted code-owned section:
    its `path=` marker at the code's new location, or (if the subsystem is gone)
    remove the section and its TOC entry.
 
+   Leave the section's `<!-- blueprint:section state=... -->` provenance marker as it
+   is (`code` or `distilled`) — remap refreshes the *code baseline*, it does not change
+   who owns the section.
+
 4. **Refresh the baseline.** Run the oracle's restamp for the area so the marker
    records the current git hash:
    `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp --path src/<area>`
