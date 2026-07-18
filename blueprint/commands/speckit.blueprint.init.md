@@ -72,17 +72,26 @@ Table of Contents, the header comment):
    `<!-- blueprint:section state=code -->` and `<!-- blueprint:code path=src/<area>
    sha=NONE -->`.
 
-4. **Unmarked, unspecced design** (a plain holding-pen section): stamp
-   `<!-- blueprint:section state=detailed -->`. Keep its full design detail in place.
+4. **Unmarked, framing / cross-cutting** (not a buildable slice — e.g. "what this
+   system is", scope boundary, key entities/glossary, anti-bias/quality properties,
+   definition of done): stamp `<!-- blueprint:section state=context -->`. Context
+   sections are managed but are **never** backlog and are never specced — this is what
+   keeps a doc full of framing from either looking like endless backlog or blocking
+   "done". Be conservative: if a section could plausibly become a spec, mark it
+   `detailed`, not `context`.
+
+5. **Unmarked, unspecced design** (a plain holding-pen section that a future spec will
+   formalize): stamp `<!-- blueprint:section state=detailed -->`. Keep its full design
+   detail in place.
 
 Add the cosmetic prose banner under the marker if it helps human readers; the marker,
 not the banner, is what the oracle reads. **Never invent content the source lacks, and
 never delete a section's design detail.**
 
-5. **Refresh the Table of Contents** so each section's status matches its marker
-   (`detailed` / `distilled → specs/<slug>` / `owned by code → src/<area>`).
+6. **Refresh the Table of Contents** so each section's status matches its marker
+   (`context` / `detailed` / `distilled → specs/<slug>` / `owned by code → src/<area>`).
 
-6. **Record code baselines.** Run the oracle's restamp to fill every `sha=NONE`:
+7. **Record code baselines.** Run the oracle's restamp to fill every `sha=NONE`:
    `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` can detect later code drift.
 

@@ -91,10 +91,11 @@ if (Test-Path $specsDir) {
 
 # section provenance: machine markers are authoritative; an unmarked ## heading is
 # UNMANAGED (external / not yet run through init) and counts as pending backlog.
-$detailedCount = 0; $settledCount = 0; $unmanagedCount = 0
+$detailedCount = 0; $settledCount = 0; $contextCount = 0; $unmanagedCount = 0
 if ($Blueprint -and (Test-Path $Blueprint)) {
   $detailedCount = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=detailed').Count
   $settledCount  = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=(distilled|code)').Count
+  $contextCount  = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=context').Count
   $s=$false; $m=$false; $x=$false
   foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
     if ($line -match '^## ') {
@@ -169,7 +170,7 @@ if ($Command -eq "next") {
 Write-Output "Blueprint waterfall — state"
 Write-Output "  root:      $Root"
 Write-Output "  blueprint: $(if($Blueprint){$Blueprint}else{'<none — run blueprint.init>'}) ($builtCount built, $($inflight.Count) in-flight)"
-if ($Blueprint -and (Test-Path $Blueprint)) { Write-Output "  sections:  $detailedCount detailed, $settledCount settled, $unmanagedCount unmanaged (not yet processed by init)" }
+if ($Blueprint -and (Test-Path $Blueprint)) { Write-Output "  sections:  $detailedCount detailed, $settledCount settled, $contextCount context, $unmanagedCount unmanaged (not yet processed by init)" }
 Write-Output ""
 Write-Output "In-flight (spec exists, build not complete):"
 if ($inflight.Count -eq 0) { Write-Output "  (none)" } else { $inflight | ForEach-Object { Write-Output "  - $($_.slug)  → next: $($_.phase)" } }

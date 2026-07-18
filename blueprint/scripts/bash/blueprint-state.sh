@@ -118,17 +118,20 @@ fi
 
 # ── section provenance (deterministic: read machine markers, not prose banners) ─
 # The extension stamps every section it manages with a marker under its heading:
-#   <!-- blueprint:section state=detailed -->
-#   <!-- blueprint:section state=distilled owner=specs/<slug> -->
-#   <!-- blueprint:section state=code -->
+#   <!-- blueprint:section state=detailed -->                        (holding pen)
+#   <!-- blueprint:section state=distilled owner=specs/<slug> -->    (owned by a spec)
+#   <!-- blueprint:section state=code -->                            (owned by code)
+#   <!-- blueprint:section state=context -->                         (framing/cross-cutting;
+#                                       managed, but not a buildable slice — never backlog)
 # Markers are AUTHORITATIVE — they are the extension's record of what it has processed.
 # A level-2 heading with NO marker is UNMANAGED (external / not yet run through init)
 # and counts as pending backlog, so a raw or hand-edited doc never silently reads as
 # "done" just because a human left a section un-marked. Prose banners are cosmetic.
-DETAILED_COUNT=0; SETTLED_COUNT=0; UNMANAGED_COUNT=0
+DETAILED_COUNT=0; SETTLED_COUNT=0; CONTEXT_COUNT=0; UNMANAGED_COUNT=0
 if [ -f "$BLUEPRINT" ]; then
   DETAILED_COUNT=$(grep -cE '<!-- blueprint:section state=detailed' "$BLUEPRINT" 2>/dev/null || true)
   SETTLED_COUNT=$(grep -cE '<!-- blueprint:section state=(distilled|code)' "$BLUEPRINT" 2>/dev/null || true)
+  CONTEXT_COUNT=$(grep -cE '<!-- blueprint:section state=context' "$BLUEPRINT" 2>/dev/null || true)
   UNMANAGED_COUNT=$(awk '
     /^## / { if (s && !m && !x) u++; h=tolower($0);
              x=(h ~ /table of contents/ || h ~ /how this/ || h ~ /changelog/); s=1; m=0; next }
@@ -240,7 +243,7 @@ fi
 echo "Blueprint waterfall — state"
 echo "  root:      $ROOT"
 echo "  blueprint: ${BLUEPRINT:-<none — run blueprint.init>} ${BLUEPRINT:+(${BUILT_COUNT} built, $(( ${#INFLIGHT_SLUG[@]} )) in-flight)}"
-[ -f "$BLUEPRINT" ] && echo "  sections:  ${DETAILED_COUNT} detailed, ${SETTLED_COUNT} settled, ${UNMANAGED_COUNT} unmanaged (not yet processed by init)"
+[ -f "$BLUEPRINT" ] && echo "  sections:  ${DETAILED_COUNT} detailed, ${SETTLED_COUNT} settled, ${CONTEXT_COUNT} context, ${UNMANAGED_COUNT} unmanaged (not yet processed by init)"
 echo
 echo "In-flight (spec exists, build not complete):"
 if [ "${#INFLIGHT_SLUG[@]}" -eq 0 ]; then echo "  (none)"; else

@@ -44,6 +44,10 @@
                        > **Distilled — owned by `specs/<slug>`.**
     - SETTLED by code: <!-- blueprint:section state=code -->
                        > **Distilled — owned by code at `src/...`.** (no spec yet)
+    - CONTEXT:         <!-- blueprint:section state=context -->
+                       Framing or cross-cutting material (what this is, scope boundary,
+                       key entities, glossary, definition of done). Managed, but NOT a
+                       buildable slice — never counted as backlog and never specced.
       Each settled banner is followed by a short role sentence, a bulleted at-a-glance
       digest, and a "see the owner, don't restate" closer.
     Partial distillation is fine: distill the specced sub-part, keep the rest detailed.
