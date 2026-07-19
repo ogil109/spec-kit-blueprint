@@ -13,7 +13,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$Json = $false; $Root = ""; $Blueprint = ""; $Skip = @(); $PathFilter = ""
+$Json = $false; $Root = ""; $Blueprint = ""; $Skip = @(); $PathFilter = ""; $Strict = $false; $Human = $false
 for ($i = 0; $i -lt $Rest.Count; $i++) {
   switch ($Rest[$i]) {
     "--json"      { $Json = $true }
@@ -21,8 +21,13 @@ for ($i = 0; $i -lt $Rest.Count; $i++) {
     "--blueprint" { $i++; $Blueprint = $Rest[$i] }
     "--skip"      { $i++; $Skip += $Rest[$i] }   # exclude a slug (e.g. a parked slice); repeatable
     "--path"      { $i++; $PathFilter = $Rest[$i] }  # restamp: limit to one code path
+    "--strict"    { $Strict = $true }            # check: make advisory (soft) issues blocking too
+    "--human"     { $Human = $true }             # force human-readable output
   }
 }
+# Output format: explicit flag wins; else JSON when piped, human on a TTY (git/ls convention).
+if ($Json) { $Fmt = "json" } elseif ($Human) { $Fmt = "human" }
+elseif ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected) { $Fmt = "human" } else { $Fmt = "json" }
 
 # locate repo root
 if (-not $Root) {
@@ -109,19 +114,37 @@ if ($Blueprint -and (Test-Path $Blueprint)) {
 $backlogCount = $detailedCount + $unmanagedCount
 
 if ($Command -eq "check") {
-  $issues = 0
-  if ($unmanagedCount -gt 0) { Write-Output "UNMANAGED  $unmanagedCount section(s) the extension hasn't processed (external/manual)   -> blueprint.init"; $issues++ }
-  foreach ($s in $drift) { Write-Output "DRIFT      built spec not reflected in blueprint: $s   -> blueprint.distill $s"; $issues++ }
+  # Tiered: HARD (drift, dangling) blocks; SOFT (stale, unstamped, unmanaged) is advisory
+  # unless --strict. Each issue carries a self-describing remedy + kind (see bash oracle).
+  $issues = @()
+  if ($unmanagedCount -gt 0) { $issues += [pscustomobject]@{ severity="soft"; type="unmanaged"; target=""; detail="$unmanagedCount section(s) not processed by the extension"; run="/speckit.blueprint.init"; kind="authored" } }
+  foreach ($s in $drift) { $issues += [pscustomobject]@{ severity="hard"; type="drift"; target=$s; detail="built spec not in the map"; run="/speckit.blueprint.distill $s"; kind="authored" } }
   if (Test-Git) {
     foreach ($m in (Get-CodeMarkers)) {
       $cur = Get-CurSha $m.path
-      if (-not $cur)             { Write-Output "DANGLING   blueprint maps code that no longer exists: $($m.path)   -> blueprint.remap"; $issues++ }
-      elseif ($m.sha -eq "NONE") { Write-Output "UNSTAMPED  no baseline recorded yet for: $($m.path)   -> blueprint.remap $($m.path)"; $issues++ }
-      elseif ($cur -ne $m.sha)   { Write-Output "STALE      code changed since mapped: $($m.path) ($($m.sha) -> $cur)   -> blueprint.remap $($m.path)"; $issues++ }
+      if (-not $cur)             { $issues += [pscustomobject]@{ severity="hard"; type="dangling"; target=$m.path; detail="map points at code that no longer exists"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
+      elseif ($m.sha -eq "NONE") { $issues += [pscustomobject]@{ severity="soft"; type="unstamped"; target=$m.path; detail="no git baseline recorded yet"; run="blueprint-state.ps1 restamp --path $($m.path)"; kind="deterministic" } }
+      elseif ($cur -ne $m.sha)   { $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($($m.sha) -> $cur)"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
     }
-  } else { Write-Output "note: not a git repository — skipping code-staleness checks" }
-  if ($issues -eq 0) { Write-Output "blueprint in sync"; exit 0 }
-  Write-Output ""; Write-Output "$issues issue(s) — blueprint is out of sync"; exit 1
+  } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness checks skipped") }
+
+  $hardN = @($issues | Where-Object { $_.severity -eq "hard" }).Count
+  $softN = @($issues | Where-Object { $_.severity -eq "soft" }).Count
+  $inSync = ($issues.Count -eq 0)
+  $rc = 0; if ($hardN -gt 0 -or ($Strict -and $softN -gt 0)) { $rc = 1 }
+  $rel = if ($Blueprint) { $Blueprint.Replace("$Root/","").Replace("$Root\","") } else { "" }
+
+  if ($Fmt -eq "json") {
+    $obj = [ordered]@{ blueprint_schema="1"; command="check"; blueprint=$rel; in_sync=$inSync; blocking=$hardN; advisory=$softN; strict=$Strict;
+      issues=@($issues | ForEach-Object { [ordered]@{ severity=$_.severity; type=$_.type; target=$_.target; detail=$_.detail; remedy=[ordered]@{ run=$_.run; kind=$_.kind } } }) }
+    Write-Output ($obj | ConvertTo-Json -Depth 6 -Compress)
+    exit $rc
+  }
+  if ($inSync) { Write-Output "blueprint in sync"; exit 0 }
+  if ($hardN -gt 0) { Write-Output "HARD - the map contradicts reality (blocks merge):"; $issues | Where-Object { $_.severity -eq "hard" } | ForEach-Object { Write-Output ("  {0} {1} {2}   -> {3}" -f $_.type.ToUpper(), $_.target, $_.detail, $_.run) } }
+  if ($softN -gt 0) { if ($hardN -gt 0) { Write-Output "" }; Write-Output "SOFT - the map may be behind (advisory):"; $issues | Where-Object { $_.severity -eq "soft" } | ForEach-Object { Write-Output ("  {0} {1} {2}   -> {3}" -f $_.type.ToUpper(), $_.target, $_.detail, $_.run) } }
+  Write-Output ""; Write-Output "$hardN blocking, $softN advisory"
+  exit $rc
 }
 
 if ($Command -eq "restamp") {

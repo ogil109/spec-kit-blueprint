@@ -19,6 +19,7 @@ ROOT=""
 BLUEPRINT=""
 SKIP_SLUGS=""
 PATH_FILTER=""
+STRICT=0
 CMD="${1:-status}"; shift || true
 JSON=0
 while [ $# -gt 0 ]; do
@@ -28,9 +29,17 @@ while [ $# -gt 0 ]; do
     --blueprint) BLUEPRINT="$2"; shift ;;
     --skip) SKIP_SLUGS="$SKIP_SLUGS $2"; shift ;;   # exclude a slug (e.g. a parked slice); repeatable
     --path) PATH_FILTER="$2"; shift ;;              # restamp: limit to one code path
+    --strict) STRICT=1 ;;                           # check: make advisory (soft) issues blocking too
+    --human) HUMAN=1 ;;                             # force human-readable output (default when a TTY)
   esac
   shift
 done
+HUMAN=${HUMAN:-0}
+# Output format (git/ls convention): explicit flag wins; else JSON when piped, human on a TTY.
+if [ "$JSON" = "1" ]; then FMT=json
+elif [ "$HUMAN" = "1" ]; then FMT=human
+elif [ -t 1 ]; then FMT=human
+else FMT=json; fi
 
 # ── locate repo root ──────────────────────────────────────────────────────────
 if [ -z "$ROOT" ]; then
@@ -172,19 +181,25 @@ elif [ -f "$BLUEPRINT" ]; then
 fi
 HAS_NEXT=true; [ "$NEXT_PHASE" = "done" ] && HAS_NEXT=false
 
-# ── check: blueprint coherence gate (CI-friendly; exits nonzero on any drift) ──
-# Two drift sources, one gate: (1) a built spec the blueprint hasn't collapsed
-# (distill drift), (2) a code-owned section whose code moved/vanished since mapping.
+# ── check: tiered blueprint coherence gate (CI-friendly) ──────────────────────
+# HARD (blocks merge): the map factually CONTRADICTS reality — a built spec the map
+#   doesn't index (drift), or a section pointing at code that's been deleted
+#   (dangling). These are precise / low-false-positive.
+# SOFT (advisory, does NOT block unless --strict): the map MIGHT be behind — code
+#   changed under a mapped area (stale), a section not yet processed (unmanaged), or
+#   no baseline yet (unstamped). These are coarse; most are still-true at map altitude,
+#   so blocking every code change here is the friction teams reject. Reconcile with
+#   remap/init instead. `--strict` promotes soft → blocking for teams that want it.
 if [ "$CMD" = "check" ]; then
-  issues=0
-  if [ "$UNMANAGED_COUNT" -gt 0 ]; then
-    echo "UNMANAGED  ${UNMANAGED_COUNT} section(s) the extension hasn't processed (external/manual)   → blueprint.init"
-    issues=$((issues+1))
-  fi
+  jesc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+  ISSUES=()   # each record: severity \t type \t target \t detail \t remedy_run \t remedy_kind
+  add() { ISSUES+=("$1"$'\t'"$2"$'\t'"$3"$'\t'"$4"$'\t'"$5"$'\t'"$6"); }
+
+  [ "$UNMANAGED_COUNT" -gt 0 ] && \
+    add soft unmanaged "" "${UNMANAGED_COUNT} section(s) not processed by the extension" "/speckit.blueprint.init" authored
   if [ "${#DISTILL_DRIFT[@]}" -gt 0 ]; then
     for s in "${DISTILL_DRIFT[@]}"; do
-      echo "DRIFT      built spec not reflected in blueprint: $s   → blueprint.distill $s"
-      issues=$((issues+1))
+      add hard drift "$s" "built spec not in the map" "/speckit.blueprint.distill $s" authored
     done
   fi
   if is_git; then
@@ -192,21 +207,59 @@ if [ "$CMD" = "check" ]; then
       [ -n "$m" ] || continue
       p="$(marker_path "$m")"; s="$(marker_sha "$m")"; cur="$(current_sha "$p")"
       if [ -z "$cur" ]; then
-        echo "DANGLING   blueprint maps code that no longer exists: $p   → blueprint.remap"
-        issues=$((issues+1))
+        add hard dangling "$p" "map points at code that no longer exists" "/speckit.blueprint.remap $p" authored
       elif [ "$s" = "NONE" ]; then
-        echo "UNSTAMPED  no baseline recorded yet for: $p   → blueprint.remap $p"
-        issues=$((issues+1))
+        add soft unstamped "$p" "no git baseline recorded yet" "blueprint-state.sh restamp --path $p" deterministic
       elif [ "$cur" != "$s" ]; then
-        echo "STALE      code changed since mapped: $p ($s → $cur)   → blueprint.remap $p"
-        issues=$((issues+1))
+        add soft stale "$p" "code changed since mapped ($s -> $cur)" "/speckit.blueprint.remap $p" authored
       fi
     done < <(code_markers)
   else
-    echo "note: not a git repository — skipping code-staleness checks"
+    echo "note: not a git repository — code-staleness checks skipped" >&2
   fi
-  if [ "$issues" -eq 0 ]; then echo "blueprint in sync ✓"; exit 0; fi
-  echo; echo "$issues issue(s) — blueprint is out of sync"; exit 1
+
+  hard_n=0; soft_n=0
+  for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
+    case "$rec" in hard*) hard_n=$((hard_n+1)) ;; soft*) soft_n=$((soft_n+1)) ;; esac
+  done
+  insync=false; [ "$hard_n" -eq 0 ] && [ "$soft_n" -eq 0 ] && insync=true
+  # exit code (first-class signal): block on hard, or on soft too under --strict
+  rc=0; { [ "$hard_n" -gt 0 ] || { [ "$STRICT" = "1" ] && [ "$soft_n" -gt 0 ]; }; } && rc=1
+
+  if [ "$FMT" = json ]; then
+    printf '{"blueprint_schema":"1","command":"check","blueprint":"%s","in_sync":%s,"blocking":%d,"advisory":%d,"strict":%s,"issues":[' \
+      "$(jesc "${BLUEPRINT#"$ROOT/"}")" "$insync" "$hard_n" "$soft_n" "$([ "$STRICT" = 1 ] && echo true || echo false)"
+    first=1
+    for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
+      IFS=$'\t' read -r sev typ tgt det run kind <<<"$rec"
+      [ $first -eq 1 ] || printf ','; first=0
+      printf '{"severity":"%s","type":"%s","target":"%s","detail":"%s","remedy":{"run":"%s","kind":"%s"}}' \
+        "$sev" "$typ" "$(jesc "$tgt")" "$(jesc "$det")" "$(jesc "$run")" "$kind"
+    done
+    printf ']}\n'
+    exit $rc
+  fi
+
+  # human
+  if [ "$insync" = true ]; then echo "blueprint in sync ✓"; exit 0; fi
+  if [ "$hard_n" -gt 0 ]; then
+    echo "HARD — the map contradicts reality (blocks merge):"
+    for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
+      IFS=$'\t' read -r sev typ tgt det run kind <<<"$rec"
+      [ "$sev" = hard ] && printf '  %-9s %s %s   → %s\n' "$(echo "$typ"|tr a-z A-Z)" "$tgt" "$det" "$run"
+    done
+  fi
+  if [ "$soft_n" -gt 0 ]; then
+    [ "$hard_n" -gt 0 ] && echo
+    echo "SOFT — the map may be behind (advisory$([ "$STRICT" = 1 ] && echo "; blocking under --strict")):"
+    for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
+      IFS=$'\t' read -r sev typ tgt det run kind <<<"$rec"
+      [ "$sev" = soft ] && printf '  %-9s %s %s   → %s\n' "$(echo "$typ"|tr a-z A-Z)" "$tgt" "$det" "$run"
+    done
+  fi
+  echo
+  echo "${hard_n} blocking, ${soft_n} advisory$([ "$rc" = 0 ] && [ "$soft_n" -gt 0 ] && echo " — not blocking (use --strict to block)")"
+  exit $rc
 fi
 
 # ── restamp: refresh the git baseline for code markers (all, or one --path) ────
