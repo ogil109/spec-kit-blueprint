@@ -33,6 +33,17 @@ architecture map plus a deterministic CI gate that keeps it honest.
   hand-edited doc can never silently read as "done". `init` is idempotent and safe: it
   stamps unmanaged sections, recognizes and preserves managed ones, and never deletes
   content — which also lets it **formalize an existing master doc** in place.
+- **Tiered, machine-first coherence gate.** `blueprint-state.sh check` classifies every
+  issue by severity: **HARD** (the map contradicts reality — a built spec it doesn't
+  index, or a section pointing at deleted code) **blocks the merge**; **SOFT** (the map
+  may be behind — code changed under a mapped area, an unprocessed section, a missing
+  baseline) is **advisory and does not block** (coarse signals are usually still true at
+  map altitude — blocking them every commit is the friction teams reject). `--strict`
+  promotes soft → blocking. Output is **machine-first** (git/`--porcelain` convention:
+  JSON when piped, human on a TTY; `--json`/`--human` force); `check --json` emits a
+  versioned contract with a self-describing `remedy.run` + `remedy.kind`
+  (deterministic|authored) per issue, so a CI LLM backend can self-heal (apply+commit
+  deterministic fixes, PR authored ones). Tested in `tests/check_remap_test.sh`.
 - **Coherence gate — keep the map honest no matter where a change comes from.**
   Sections that map a `src/` area carry a git baseline (`<!-- blueprint:code path=…
   sha=… -->`).

@@ -4,7 +4,7 @@ extension:
   id: blueprint
   name: "Blueprint — Living Architecture Map"
   version: "1.0.0"
-  description: "A living, collapsing architecture map for spec-driven projects + a deterministic CI gate that flags when a spec, the map, or the code drift apart. The same externalized state + oracle doubles as an autonomous waterfall harness for multi-spec agent sessions. Greenfield or brownfield."
+  description: "A living architecture map for spec-driven projects, kept honest by a deterministic, low-friction, machine-first CI gate (JSON output, self-healable) that blocks only when the map contradicts the specs or code — and warns, without blocking, on the rest. Brownfield or greenfield."
   category: process
   effect: read-write
   author: ogil109
