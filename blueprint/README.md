@@ -141,6 +141,11 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
   spec not indexed, code that moved) — it does **not** verify the code *correctly*
   implements its spec, and it doesn't check architectural boundaries. That deeper
   conformance is a heavier, language-specific problem this deliberately doesn't tackle.
+- **A structural gate with two known blind spots.** It tracks the sections and code
+  paths it's been given, so it does **not** notice (a) **brand-new code that no section
+  maps** — run `init --from-code` on a new area to bring it in — or (b) whether a
+  distilled **digest still faithfully reflects its spec** (it checks the *pointer*, not
+  the prose). Treat digests as human-reviewed content, not verified fact.
 - **The friction dial is the bet.** Making `stale` advisory (not blocking) is what makes
   the gate usable in real CI; the tradeoff is that out-of-band code changes are *surfaced
   and reconciled*, not hard-blocked (unless `--strict`). Whether this balance is right for
