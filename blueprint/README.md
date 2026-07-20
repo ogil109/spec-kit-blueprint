@@ -14,6 +14,27 @@ step (or a CI agent) can **detect and heal drift automatically**.
 > the specification does not… a linter does not flag it, CI does not flag it, the system
 > ships with drift baked in."* This extension is a deterministic gate for exactly that.
 
+## Who this is for
+
+**Use it if** you practise spec-driven development (Spec Kit) on a **real, evolving —
+often brownfield — codebase**, you feel the specs and the architecture picture going
+stale as the code changes, and you want **CI to catch that drift** instead of discovering
+it later.
+
+**You probably don't need it if** you're just starting SDD on a small or greenfield
+project (Spec Kit's core flow is enough), you want SDD *lighter*, or your pain is the
+agent *not knowing your codebase* — that's retrieval, handled by your editor/agent; this
+keeps the map *current*, it doesn't read the code for you.
+
+## How to integrate
+
+1. **Install** it into a Spec Kit project (below).
+2. **`init` once** — from existing code (`--from-code`) or a design doc — to create the map.
+3. **Add `check` to CI** — this is the integration point; it fails the build only when the
+   map factually contradicts the specs/code (see the gate below).
+4. **Keep building normally.** The map maintains itself as the gate nudges you
+   (`distill` a shipped slice, `remap` after a refactor, `init --from-code` a new module).
+
 ## The tiered coherence gate (the core)
 
 `check` is a deterministic gate (no LLM) that classifies every issue into two tiers, so
@@ -27,11 +48,28 @@ it can run in CI **without crying wolf on every commit**:
 - 🟡 **SOFT — the map *may* be behind → advisory, does NOT block (exit 0).** Coarse
   signals where the map is usually still true at architecture altitude:
   - **stale** — code changed under a mapped area (a refactor/hotfix, spec or not). → `remap`
+  - **unmapped** — new code that no section maps (a module added out-of-band). → `init --from-code <path>`
   - **unmanaged** — a section `init` hasn't processed yet. → `init`
   - **unstamped** — a mapped area with no baseline yet. → `restamp`
 
 `--strict` promotes SOFT to blocking for teams that want full enforcement. The exit code
 is a first-class signal, independent of output format.
+
+Running it looks like this (human-readable on a terminal):
+
+```console
+$ blueprint-state.sh check --human
+HARD — the map contradicts reality (blocks merge):
+  DRIFT     007-refunds  built spec not in the map   → /speckit.blueprint.distill 007-refunds
+
+SOFT — the map may be behind (advisory):
+  STALE     src/payments  code changed since mapped   → /speckit.blueprint.remap src/payments
+  UNMAPPED  src/notifications  tracked code no section maps   → /speckit.blueprint.init --from-code src/notifications
+
+1 blocking, 2 advisory
+$ echo $?
+1
+```
 
 ```yaml
 # .github/workflows/blueprint.yml — blocks only when the map is factually behind
@@ -87,6 +125,10 @@ specify extension add blueprint \
 specify extension add --dev /path/to/spec-kit-extensions/blueprint
 ```
 
+**Requirements:** a Spec Kit project (`.specify/`), **Spec Kit ≥ 0.10**, **git** (for the
+code-baseline checks), and **bash** (Unix/macOS). A PowerShell port exists but is not yet
+execution-verified on Windows.
+
 ## Quickstart
 
 ```bash
@@ -141,11 +183,10 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
   spec not indexed, code that moved) — it does **not** verify the code *correctly*
   implements its spec, and it doesn't check architectural boundaries. That deeper
   conformance is a heavier, language-specific problem this deliberately doesn't tackle.
-- **A structural gate with two known blind spots.** It tracks the sections and code
-  paths it's been given, so it does **not** notice (a) **brand-new code that no section
-  maps** — run `init --from-code` on a new area to bring it in — or (b) whether a
-  distilled **digest still faithfully reflects its spec** (it checks the *pointer*, not
-  the prose). Treat digests as human-reviewed content, not verified fact.
+- **A structural gate with one known blind spot.** It detects *new* code (the `unmapped`
+  signal) and *changed* mapped code, but it does **not** verify whether a distilled
+  **digest still faithfully reflects its spec** — it checks the *pointer*, not the prose.
+  Treat digests as human-reviewed content, not verified fact.
 - **The friction dial is the bet.** Making `stale` advisory (not blocking) is what makes
   the gate usable in real CI; the tradeoff is that out-of-band code changes are *surfaced
   and reconciled*, not hard-blocked (unless `--strict`). Whether this balance is right for
@@ -167,3 +208,38 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
 - Harness loop: **tested** — `tests/harness_loop_test.sh`.
 - PowerShell port (`scripts/powershell/blueprint-state.ps1`): mirrored for parity;
   **needs execution-verification on a Windows/pwsh environment**.
+
+This is an early, honestly-scoped extension: the deterministic gate is tested and
+dogfooded; whether its low-friction balance is right for *your* team is exactly what
+we'd like to learn.
+
+## Support
+
+Questions, bugs, or "it flagged X and shouldn't have" — please open an issue on the
+[repository](https://github.com/ogil109/spec-kit-extensions). Feedback on the gate's
+friction (false positives/negatives on a real repo) is especially welcome.
+
+## Contributing
+
+Contributions welcome — this is a community Spec Kit extension. The oracle/gate is a
+single Bash script with **no dependencies beyond bash + git**, so the tests run anywhere:
+
+```bash
+bash tests/oracle_test.sh          # state frontier, provenance, context
+bash tests/check_remap_test.sh     # the tiered gate: hard/soft, --strict, JSON contract
+bash tests/harness_loop_test.sh    # the autonomous-harness loop
+```
+
+Iterate locally with `specify extension add --dev /path/to/blueprint`. Please open an
+issue to discuss anything larger than a fix before sending a PR. The PowerShell port
+(`scripts/powershell/blueprint-state.ps1`) needs a Windows/pwsh maintainer to verify it.
+
+## Authors & acknowledgment
+
+Built by [ogil109](https://github.com/ogil109), with AI assistance (Claude Code) per
+Spec Kit's contributing guidelines. The drift-gate concept builds on ideas in the 2026
+spec-driven-development literature (see *Honest boundaries*).
+
+## License
+
+[MIT](../LICENSE).
