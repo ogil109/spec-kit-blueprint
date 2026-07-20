@@ -126,7 +126,24 @@ if ($Command -eq "check") {
       elseif ($m.sha -eq "NONE") { $issues += [pscustomobject]@{ severity="soft"; type="unstamped"; target=$m.path; detail="no git baseline recorded yet"; run="blueprint-state.ps1 restamp --path $($m.path)"; kind="deterministic" } }
       elseif ($cur -ne $m.sha)   { $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($($m.sha) -> $cur)"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
     }
-  } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness checks skipped") }
+    # unmapped code (coverage): tracked code under a mapped root that no section covers
+    $mappedPaths = @(Get-CodeMarkers | ForEach-Object { $_.path })
+    if ($mappedPaths.Count -gt 0) {
+      $roots = @($mappedPaths | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
+      $uncovered = @()
+      foreach ($f in (git -C $Root ls-files -- $roots 2>$null)) {
+        if ($mappedPaths | Where-Object { $f -eq $_ -or $f.StartsWith("$_/") }) { continue }  # covered file
+        $d = ($f -replace '/[^/]+$','')
+        if ($mappedPaths | Where-Object { $_ -eq $d -or $_.StartsWith("$d/") }) { continue }  # covered-parent dir
+        $uncovered += $d
+      }
+      $uncovered = @($uncovered | Sort-Object -Unique)
+      foreach ($d in $uncovered) {
+        if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
+        $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint.init --from-code $d"; kind="authored" }
+      }
+    }
+  } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness/coverage checks skipped") }
 
   $hardN = @($issues | Where-Object { $_.severity -eq "hard" }).Count
   $softN = @($issues | Where-Object { $_.severity -eq "soft" }).Count

@@ -77,6 +77,30 @@ assert i['severity']=='hard' and i['type']=='drift'
 assert i['remedy']['kind']=='authored' and 'distill' in i['remedy']['run']
 " >/dev/null 2>&1; assert "check --json emits versioned contract (severity/type/remedy.kind)" $? "$json"
 
+# 8. unmapped code (coverage): a new src area no section maps -> SOFT, advisory
+R4="$TMP/repo4"; mkdir -p "$R4/src/mapped" "$R4/src/newmod/sub" "$R4/.specify"
+git -C "$R4" init -q; git -C "$R4" config user.email t@t; git -C "$R4" config user.name t
+printf 'x\n' > "$R4/src/mapped/a.py"; printf 'x\n' > "$R4/src/newmod/b.py"; printf 'x\n' > "$R4/src/newmod/sub/c.py"
+cat > "$R4/blueprint.md" <<'EOF'
+# BP
+## Mapped
+<!-- blueprint:section state=code -->
+<!-- blueprint:code path=src/mapped sha=NONE -->
+EOF
+git -C "$R4" add -A; git -C "$R4" commit -qm init
+C=(--root "$R4" --blueprint "$R4/blueprint.md")
+bash "$ORACLE" restamp "${C[@]}" >/dev/null 2>&1   # baseline src/mapped so it's not unstamped noise
+gate "${C[@]}"
+{ echo "$OUT" | grep -q "UNMAPPED.*src/newmod" && [ "$RC" = 0 ]; }; assert "new unmapped code flagged SOFT (exit 0)" $? "rc=$RC $OUT"
+n=$(echo "$OUT" | grep -c UNMAPPED); [ "$n" = 1 ]; assert "unmapped collapses to one area (not per-file)" $? "count=$n"
+json2="$(bash "$ORACLE" check --json "${C[@]}" 2>/dev/null)"
+echo "$json2" | python3 -c "
+import json,sys
+u=[i for i in json.load(sys.stdin)['issues'] if i['type']=='unmapped']
+assert u and u[0]['target']=='src/newmod' and 'from-code' in u[0]['remedy']['run']
+" >/dev/null 2>&1; assert "unmapped JSON remedy = init --from-code src/newmod" $? "$json2"
+gate --strict "${C[@]}"; [ "$RC" = 1 ]; assert "unmapped blocks under --strict" $? "rc=$RC"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

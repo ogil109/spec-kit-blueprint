@@ -24,8 +24,11 @@ $ARGUMENTS
 - **A doc path** (`docs/overview.md`, `docs/master-spec.md`) — *greenfield / formalize*:
   use it as the blueprint and stamp/normalize every section. Ideal for an existing
   master doc that already half-follows the pattern.
-- **`--from-code`** (optionally `--from-code src/`) — *brownfield*: reverse-map the
-  codebase into code-owned sections.
+- **`--from-code`** (optionally scoped: `--from-code src/<area>`) — *brownfield*:
+  reverse-map the codebase into code-owned sections. Scoped to a single path, it maps
+  **just that area** into one new code-owned section (a *partial* init) without touching
+  the rest — this is the remedy the `check` gate points at for an `unmapped` (new,
+  uncovered) code area.
 - **Empty** — scaffold an empty blueprint from the template, or normalize the
   already-configured/auto-detected blueprint.
 

@@ -214,8 +214,29 @@ if [ "$CMD" = "check" ]; then
         add soft stale "$p" "code changed since mapped ($s -> $cur)" "/speckit.blueprint.remap $p" authored
       fi
     done < <(code_markers)
+
+    # unmapped code (coverage): tracked code under a mapped root that NO section covers.
+    # Deterministic + git-based (git ls-files → respects .gitignore). Reported at the
+    # shallowest uncovered directory; a dir that only *contains* mapped areas (a covered
+    # parent) is not flagged. SOFT — a new module may be intentional WIP.
+    mapped_paths=(); while IFS= read -r mk; do [ -n "$mk" ] && mapped_paths+=("$(marker_path "$mk")"); done < <(code_markers)
+    if [ "${#mapped_paths[@]}" -gt 0 ]; then
+      roots=$(printf '%s\n' "${mapped_paths[@]}" | sed -E 's#/.*##' | sort -u)
+      uncovered=$(git -C "$ROOT" ls-files -- $roots 2>/dev/null | while IFS= read -r f; do
+        skip=0
+        for p in "${mapped_paths[@]}"; do case "$f" in "$p"|"$p"/*) skip=1; break;; esac; done   # covered file
+        [ "$skip" = 1 ] && continue
+        d=$(dirname "$f")
+        for p in "${mapped_paths[@]}"; do case "$p" in "$d"|"$d"/*) skip=1; break;; esac; done     # covered-parent dir
+        [ "$skip" = 1 ] || echo "$d"
+      done | sort -u)
+      for d in $uncovered; do
+        keep=1; for o in $uncovered; do [ "$o" != "$d" ] && case "$d" in "$o"/*) keep=0; break;; esac; done
+        [ "$keep" = 1 ] && add soft unmapped "$d" "tracked code no section maps" "/speckit.blueprint.init --from-code $d" authored
+      done
+    fi
   else
-    echo "note: not a git repository — code-staleness checks skipped" >&2
+    echo "note: not a git repository — code-staleness/coverage checks skipped" >&2
   fi
 
   hard_n=0; soft_n=0

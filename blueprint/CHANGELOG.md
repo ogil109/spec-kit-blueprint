@@ -33,11 +33,15 @@ architecture map plus a deterministic CI gate that keeps it honest.
   hand-edited doc can never silently read as "done". `init` is idempotent and safe: it
   stamps unmanaged sections, recognizes and preserves managed ones, and never deletes
   content — which also lets it **formalize an existing master doc** in place.
+- **Coverage: `unmapped` signal.** `check` also flags tracked code that **no section
+  maps** (a module added out-of-band), reported at the shallowest uncovered directory via
+  `git ls-files` (respects `.gitignore`); remedy is a scoped `init --from-code <path>`.
+  SOFT/advisory. Closes the "new code is invisible" blind spot found while dogfooding.
 - **Tiered, machine-first coherence gate.** `blueprint-state.sh check` classifies every
   issue by severity: **HARD** (the map contradicts reality — a built spec it doesn't
   index, or a section pointing at deleted code) **blocks the merge**; **SOFT** (the map
-  may be behind — code changed under a mapped area, an unprocessed section, a missing
-  baseline) is **advisory and does not block** (coarse signals are usually still true at
+  may be behind — code changed under a mapped area, new unmapped code, an unprocessed
+  section, a missing baseline) is **advisory and does not block** (coarse signals are usually still true at
   map altitude — blocking them every commit is the friction teams reject). `--strict`
   promotes soft → blocking. Output is **machine-first** (git/`--porcelain` convention:
   JSON when piped, human on a TTY; `--json`/`--human` force); `check --json` emits a
