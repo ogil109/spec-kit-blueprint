@@ -1,0 +1,19 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: blueprint gate tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run deterministic test suites (bash + git + python3, no other deps)
+        run: |
+          set -e
+          bash tests/oracle_test.sh
+          bash tests/check_remap_test.sh
+          bash tests/harness_loop_test.sh

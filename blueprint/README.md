@@ -1,5 +1,10 @@
 # Blueprint — Living Architecture Map
 
+[![tests](https://github.com/ogil109/spec-kit-extensions/actions/workflows/tests.yml/badge.svg)](https://github.com/ogil109/spec-kit-extensions/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+![Spec Kit](https://img.shields.io/badge/Spec_Kit-%E2%89%A50.10-blue)
+![status](https://img.shields.io/badge/status-experimental-orange)
+
 A [Spec Kit](https://github.com/github/spec-kit) extension that keeps a **living
 architecture map** of your project honest — and gives you a **deterministic,
 low-friction, machine-first CI gate** that catches when the map, the specs, and the
