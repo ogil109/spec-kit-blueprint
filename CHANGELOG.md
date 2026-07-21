@@ -89,5 +89,5 @@ architecture map plus a deterministic CI gate that keeps it honest.
 
 ---
 
-[Unreleased]: https://github.com/ogil109/spec-kit-extensions/tree/main/blueprint
-[1.0.0]: https://github.com/ogil109/spec-kit-extensions/releases/tag/blueprint-v1.0.0
+[Unreleased]: https://github.com/ogil109/spec-kit-blueprint/tree/main
+[1.0.0]: https://github.com/ogil109/spec-kit-blueprint/releases/tag/v1.0.0

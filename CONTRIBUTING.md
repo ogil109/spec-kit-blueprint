@@ -1,7 +1,7 @@
 # Contributing
 
-Thanks for your interest. This repo hosts community [Spec Kit](https://github.com/github/spec-kit)
-extensions, one per subdirectory (currently [`blueprint/`](./blueprint)).
+Thanks for your interest. This repo is **Blueprint**, a community
+[Spec Kit](https://github.com/github/spec-kit) extension.
 
 ## Running the tests
 
@@ -20,7 +20,7 @@ CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
 ## Local development
 
 ```bash
-specify extension add --dev /path/to/spec-kit-extensions/blueprint
+specify extension add --dev /path/to/spec-kit-blueprint
 ```
 
 ## Guidelines
@@ -29,7 +29,7 @@ specify extension add --dev /path/to/spec-kit-extensions/blueprint
 - Keep the oracle **deterministic and dependency-free** (bash + git); agent-authored
   behavior lives in the command markdown, not the script.
 - Add or update a test for any change to `check`/`next`/`status`/`restamp` behavior.
-- **Help wanted:** the PowerShell port (`blueprint/scripts/powershell/blueprint-state.ps1`)
+- **Help wanted:** the PowerShell port (`scripts/powershell/blueprint-state.ps1`)
   is mirrored from the Bash oracle but **not yet execution-verified** — a Windows/pwsh
   maintainer to verify it is very welcome.
 

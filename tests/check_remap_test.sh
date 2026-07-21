@@ -4,7 +4,7 @@
 # behind (advisory, exit 0 unless --strict). Built against a real git repo.
 set -uo pipefail
 
-ORACLE="$(cd "$(dirname "$0")/.." && pwd)/blueprint/scripts/bash/blueprint-state.sh"
+ORACLE="$(cd "$(dirname "$0")/.." && pwd)/scripts/bash/blueprint-state.sh"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 PASS=0; FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }

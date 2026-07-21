@@ -8,9 +8,9 @@ extension:
   category: process
   effect: read-write
   author: ogil109
-  repository: https://github.com/ogil109/spec-kit-extensions
+  repository: https://github.com/ogil109/spec-kit-blueprint
   license: MIT
-  homepage: https://github.com/ogil109/spec-kit-extensions/tree/main/blueprint
+  homepage: https://github.com/ogil109/spec-kit-blueprint/tree/main
 
 requires:
   speckit_version: ">=0.10.0"
