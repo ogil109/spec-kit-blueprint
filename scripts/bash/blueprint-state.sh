@@ -192,8 +192,13 @@ HAS_NEXT=true; [ "$NEXT_PHASE" = "done" ] && HAS_NEXT=false
 #   remap/init instead. `--strict` promotes soft → blocking for teams that want it.
 if [ "$CMD" = "check" ]; then
   jesc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
-  ISSUES=()   # each record: severity \t type \t target \t detail \t remedy_run \t remedy_kind
-  add() { ISSUES+=("$1"$'\t'"$2"$'\t'"$3"$'\t'"$4"$'\t'"$5"$'\t'"$6"); }
+  # Records are \x1f-delimited (ASCII Unit Separator), NOT tab: tab is a whitespace
+  # IFS char, so `read` collapses consecutive tabs and drops empty fields — which
+  # silently shifted every field of an issue with an empty target (only `unmanaged`).
+  # \x1f is non-whitespace (empty fields preserved) and never appears in paths/prose.
+  US=$'\x1f'
+  ISSUES=()   # each record: severity \x1f type \x1f target \x1f detail \x1f remedy_run \x1f remedy_kind
+  add() { ISSUES+=("$1$US$2$US$3$US$4$US$5$US$6"); }
 
   [ "$UNMANAGED_COUNT" -gt 0 ] && \
     add soft unmanaged "" "${UNMANAGED_COUNT} section(s) not processed by the extension" "/speckit.blueprint.init" authored
@@ -253,7 +258,7 @@ if [ "$CMD" = "check" ]; then
       "$(jesc "${BLUEPRINT#"$ROOT/"}")" "$insync" "$hard_n" "$soft_n" "$([ "$STRICT" = 1 ] && echo true || echo false)"
     first=1
     for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
-      IFS=$'\t' read -r sev typ tgt det run kind <<<"$rec"
+      IFS="$US" read -r sev typ tgt det run kind <<<"$rec"
       [ $first -eq 1 ] || printf ','; first=0
       printf '{"severity":"%s","type":"%s","target":"%s","detail":"%s","remedy":{"run":"%s","kind":"%s"}}' \
         "$sev" "$typ" "$(jesc "$tgt")" "$(jesc "$det")" "$(jesc "$run")" "$kind"
@@ -267,7 +272,7 @@ if [ "$CMD" = "check" ]; then
   if [ "$hard_n" -gt 0 ]; then
     echo "HARD — the map contradicts reality (blocks merge):"
     for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
-      IFS=$'\t' read -r sev typ tgt det run kind <<<"$rec"
+      IFS="$US" read -r sev typ tgt det run kind <<<"$rec"
       [ "$sev" = hard ] && printf '  %-9s %s %s   → %s\n' "$(echo "$typ"|tr a-z A-Z)" "$tgt" "$det" "$run"
     done
   fi
@@ -275,7 +280,7 @@ if [ "$CMD" = "check" ]; then
     [ "$hard_n" -gt 0 ] && echo
     echo "SOFT — the map may be behind (advisory$([ "$STRICT" = 1 ] && echo "; blocking under --strict")):"
     for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
-      IFS=$'\t' read -r sev typ tgt det run kind <<<"$rec"
+      IFS="$US" read -r sev typ tgt det run kind <<<"$rec"
       [ "$sev" = soft ] && printf '  %-9s %s %s   → %s\n' "$(echo "$typ"|tr a-z A-Z)" "$tgt" "$det" "$run"
     done
   fi

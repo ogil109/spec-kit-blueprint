@@ -101,6 +101,30 @@ assert u and u[0]['target']=='src/newmod' and 'from-code' in u[0]['remedy']['run
 " >/dev/null 2>&1; assert "unmapped JSON remedy = init --from-code src/newmod" $? "$json2"
 gate --strict "${C[@]}"; [ "$RC" = 1 ]; assert "unmapped blocks under --strict" $? "rc=$RC"
 
+# 9. unmanaged (unmarked section) — the ONLY issue with an empty target field.
+#    Regression guard: records were once \t-joined and read back with tab IFS, which
+#    (tab being whitespace) collapsed the empty target and shifted every later field,
+#    corrupting target/detail/remedy in BOTH JSON and human output. Every OTHER issue
+#    type carries a non-empty target, so this case alone exercises empty-field handling.
+R5="$TMP/repo5"; mkdir -p "$R5/.specify"
+git -C "$R5" init -q; git -C "$R5" config user.email t@t; git -C "$R5" config user.name t
+printf '# BP\n## A section with no marker\nDesign detail.\n' > "$R5/blueprint.md"
+git -C "$R5" add -A; git -C "$R5" commit -qm init
+D=(--root "$R5" --blueprint "$R5/blueprint.md")
+umjson="$(bash "$ORACLE" check --json "${D[@]}" 2>/dev/null)"
+echo "$umjson" | python3 -c "
+import json,sys
+u=[i for i in json.load(sys.stdin)['issues'] if i['type']=='unmanaged']
+assert u, 'no unmanaged issue emitted'
+i=u[0]
+assert i['target']=='', f\"target should be empty, got {i['target']!r}\"
+assert 'not processed' in i['detail'], f\"detail wrong: {i['detail']!r}\"
+assert i['remedy']['run']=='/speckit.blueprint.init', f\"run shifted: {i['remedy']['run']!r}\"
+assert i['remedy']['kind']=='authored', f\"kind shifted: {i['remedy']['kind']!r}\"
+" >/dev/null 2>&1; assert "unmanaged (empty target) keeps fields aligned in JSON" $? "$umjson"
+umhuman="$(bash "$ORACLE" check --human "${D[@]}" 2>/dev/null)"
+echo "$umhuman" | grep -q 'UNMANAGED .* → /speckit.blueprint.init'; assert "unmanaged human remedy is the init command, not a shifted field" $? "$umhuman"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
