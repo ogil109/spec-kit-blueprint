@@ -20,7 +20,7 @@ CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
 ## Local development
 
 ```bash
-specify extension add --dev /path/to/spec-kit-blueprint
+specify extension add /path/to/spec-kit-blueprint --dev
 ```
 
 ## Commit conventions & releases

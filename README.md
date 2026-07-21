@@ -127,9 +127,9 @@ tiered gate) and `blueprint-state.sh restamp` (deterministic baseline refresh).
 
 ```bash
 specify extension add blueprint \
-  --from https://github.com/ogil109/spec-kit-blueprint/releases/download/v0.1.0/blueprint.zip
+  --from https://github.com/ogil109/spec-kit-blueprint/releases/latest/download/blueprint.zip
 # or, for local development:
-specify extension add --dev /path/to/spec-kit-blueprint
+specify extension add /path/to/spec-kit-blueprint --dev
 ```
 
 **Requirements:** a Spec Kit project (`.specify/`), **Spec Kit ≥ 0.10**, **git** (for the
@@ -237,7 +237,7 @@ bash tests/check_remap_test.sh     # the tiered gate: hard/soft, --strict, JSON 
 bash tests/harness_loop_test.sh    # the autonomous-harness loop
 ```
 
-Iterate locally with `specify extension add --dev /path/to/spec-kit-blueprint`. Please open an
+Iterate locally with `specify extension add /path/to/spec-kit-blueprint --dev`. Please open an
 issue to discuss anything larger than a fix before sending a PR. The PowerShell port
 (`scripts/powershell/blueprint-state.ps1`) needs a Windows/pwsh maintainer to verify it.
 
