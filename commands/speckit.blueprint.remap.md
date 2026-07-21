@@ -27,7 +27,7 @@ empty, remap every section that `blueprint.check` reports as `STALE`/`DANGLING`.
 1. Repo root = nearest ancestor with `.specify/`.
 2. Blueprint path: `blueprint-config.yml` → `blueprint.path`; else auto-detect.
 3. Run the oracle's `check` to get the stale/dangling sections:
-   `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh check` (or the
+   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh check` (or the
    PowerShell port). Target the section(s) whose `path=` matches `$ARGUMENTS`.
 
 ## Execution
@@ -54,7 +54,7 @@ For each targeted code-owned section:
 
 4. **Refresh the baseline.** Run the oracle's restamp for the area so the marker
    records the current git hash:
-   `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp --path src/<area>`
+   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp --path src/<area>`
    (omit `--path` to refresh all). This is the deterministic step — do not hand-edit
    the `sha=`.
 

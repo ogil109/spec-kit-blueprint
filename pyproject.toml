@@ -28,3 +28,15 @@ update_changelog_on_bump = true
 changelog_incremental = true
 changelog_merge_prerelease = true
 major_version_zero = true
+# 0.1.0 predates these conventions (squashed initial commit); generate only
+# what follows it and leave the hand-written 0.1.0 entry alone.
+changelog_start_rev = "v0.1.0"
+
+# Keep a Changelog section names. Note conventional-commits only lets
+# feat/fix/refactor/perf/BREAKING CHANGE reach the changelog — a user-visible
+# documentation error is a `fix`, not a `docs`, if it belongs in release notes.
+[tool.commitizen.change_type_map]
+feat = "Added"
+fix = "Fixed"
+refactor = "Changed"
+perf = "Changed"

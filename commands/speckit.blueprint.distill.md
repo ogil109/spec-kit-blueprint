@@ -80,7 +80,7 @@ restate" closer. Match that shape; scale the digest to the slice.
    under the banner: `<!-- blueprint:code path=src/<area> sha=NONE -->` (no trailing
    slash; directory-level is the sane granularity). Then run the oracle's restamp to
    record the git baselines:
-   `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
+   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` flags this slice as STALE if its code is
    later edited out-of-band, and `blueprint.remap` / a re-spec resyncs it — the same
    gate that protects brownfield code-owned sections. **Skip this only for a

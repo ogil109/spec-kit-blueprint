@@ -78,13 +78,15 @@ $ echo $?
 
 ```yaml
 # .github/workflows/blueprint.yml — blocks only when the map is factually behind
-- run: .specify/extensions/blueprint/scripts/bash/blueprint-state.sh check
+- run: bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh check
 ```
 
 ## Machine-first output — built to be consumed
 
-Following the git/`--porcelain` convention: **JSON when piped/non-interactive (CI, an
-agent), human-readable on a terminal**; `--json`/`--human` force either.
+The two machine surfaces — **`check`** (the gate) and **`next`** (the harness) — follow
+the git/`--porcelain` convention: **JSON when piped/non-interactive (CI, an agent),
+human-readable on a terminal**; `--json`/`--human` force either. (`status` is the
+human dashboard and always prints prose — use `check` for a machine-readable view.)
 
 ```json
 { "blueprint_schema": "1", "command": "check", "in_sync": false,

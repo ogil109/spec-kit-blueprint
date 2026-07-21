@@ -17,7 +17,7 @@ Repeat until the oracle reports `done`, you hit a stop bound, or every remaining
 is parked:
 
 1. **Ask the oracle.** Run
-   `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh next --json`
+   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh next --json`
    (PowerShell: `.../powershell/blueprint-state.ps1 next --json`). Pass `--skip <slug>`
    for every parked slice (repeatable). Parse `{has_next, phase, slug, reason}`.
 

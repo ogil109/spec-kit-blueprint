@@ -95,7 +95,7 @@ never delete a section's design detail.**
    (`context` / `detailed` / `distilled → specs/<slug>` / `owned by code → src/<area>`).
 
 7. **Record code baselines.** Run the oracle's restamp to fill every `sha=NONE`:
-   `.specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
+   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` can detect later code drift.
 
 ## Report Back
