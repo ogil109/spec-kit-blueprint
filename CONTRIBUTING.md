@@ -44,13 +44,18 @@ Releases are **generated, never hand-written**:
 
 ```bash
 uv run cz bump               # infers the version from commit types, updates
-                             # pyproject.toml + extension.yml, prepends the
-                             # CHANGELOG entry, and creates the vX.Y.Z tag
+                             # pyproject.toml + extension.yml, rewrites
+                             # CHANGELOG.md, and creates the vX.Y.Z tag
 ```
 
-Two honest notes: the initial commit predates these conventions, so `cz check` is scoped
-to a PR's own range rather than the whole history; and the `0.1.0` CHANGELOG entry is
-hand-written for the same reason — commitizen owns every entry from `0.2.0` onward.
+**`CHANGELOG.md` is generated output — never edit it.** cz owns the entire file and
+rewrites it from commit subjects on every bump, so hand-written entries are silently
+destroyed. That makes your commit subject the changelog entry: write it for a reader of
+the release, not for yourself. Anything that needs a narrative — why a change was made,
+what it breaks, what to watch for — goes in the **GitHub release notes** instead.
+
+One caveat: the initial commit predates these conventions, so `cz check` is scoped to a
+PR's own range rather than the whole history.
 
 ## Guidelines
 
