@@ -1,6 +1,6 @@
 [project]
 name = "spec-kit-blueprint"
-version = "0.1.0"
+version = "0.1.1"
 description = "Blueprint — a Spec Kit extension: a living architecture map kept honest by a deterministic, machine-first CI gate."
 readme = "README.md"
 license = "MIT"
@@ -30,7 +30,10 @@ changelog_merge_prerelease = true
 major_version_zero = true
 # 0.1.0 predates these conventions (squashed initial commit); generate only
 # what follows it and leave the hand-written 0.1.0 entry alone.
-changelog_start_rev = "v0.1.0"
+# NOTE: this rev is INCLUSIVE — cz regenerates every entry from here onward and
+# will overwrite hand-written ones. 0.1.0 and 0.1.1 are hand-written (0.1.0
+# predates these conventions), so generation must start strictly after them.
+changelog_start_rev = "v0.1.1"
 
 # Keep a Changelog section names. Note conventional-commits only lets
 # feat/fix/refactor/perf/BREAKING CHANGE reach the changelog — a user-visible

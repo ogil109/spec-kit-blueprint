@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Execution-verify the PowerShell oracle (`scripts/powershell/blueprint-state.ps1`)
   on a Windows/pwsh environment (the Bash oracle is tested; the port is written for parity).
 
+## [0.1.1] - 2026-07-21
+
+### Fixed
+
+- **docs**: correct invocation and machine-first claim to match a real install.
+  Installed extensions lose the executable bit (spec-kit extracts with
+  `zipfile.extractall`), so every documented invocation is now `bash <path>`;
+  and `status` is human-only, so the machine-first section names `check`/`next`
+  as the machine surfaces.
+
 ## [0.1.0] - 2026-07-21
 
 A focused **coherence layer** for spec-driven projects: a living, collapsing
@@ -90,4 +100,5 @@ architecture map plus a deterministic CI gate that keeps it honest.
 ---
 
 [Unreleased]: https://github.com/ogil109/spec-kit-blueprint/tree/main
+[0.1.1]: https://github.com/ogil109/spec-kit-blueprint/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ogil109/spec-kit-blueprint/releases/tag/v0.1.0

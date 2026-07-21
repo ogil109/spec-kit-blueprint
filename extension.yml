@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: blueprint
   name: "Blueprint — Living Architecture Map"
-  version: "0.1.0"
+  version: "0.1.1"
   description: "A living architecture map for spec-driven projects, kept honest by a deterministic, low-friction, machine-first CI gate (JSON output, self-healable) that blocks only when the map contradicts the specs or code — and warns, without blocking, on the rest. Brownfield or greenfield."
   category: process
   effect: read-write
