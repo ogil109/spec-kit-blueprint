@@ -80,12 +80,12 @@ expect "in-flight unreferenced -> tasks (not distill)" "$r" "$r/blueprint.md" ph
 r="$(mkroot ctx)"; mkdir -p "$r/specs/001-foo"
 printf 'x\n' > "$r/specs/001-foo/spec.md"; printf 'x\n' > "$r/specs/001-foo/plan.md"
 printf -- '- [x] done\n' > "$r/specs/001-foo/tasks.md"
-printf '## 1. What This Is\n<!-- blueprint:section state=context -->\n## 2. Methodology\n<!-- blueprint:section state=distilled owner=specs/001-foo -->\n' > "$r/blueprint.md"
+printf '## 1. What This Is\n<!-- blueprint:section state=context -->\n## 2. Payments\n<!-- blueprint:section state=distilled owner=specs/001-foo -->\n' > "$r/blueprint.md"
 expect "context + settled -> done"    "$r" "$r/blueprint.md" phase done
 
 # 8b. context does not mask real backlog: context + detailed -> specify
 r="$(mkroot ctx2)"
-printf '## 1. What This Is\n<!-- blueprint:section state=context -->\n## 2. Corpus\n<!-- blueprint:section state=detailed -->\n' > "$r/blueprint.md"
+printf '## 1. What This Is\n<!-- blueprint:section state=context -->\n## 2. Billing\n<!-- blueprint:section state=detailed -->\n' > "$r/blueprint.md"
 expect "context + detailed -> specify"  "$r" "$r/blueprint.md" phase specify
 
 # 9. --skip excludes a slug from consideration
