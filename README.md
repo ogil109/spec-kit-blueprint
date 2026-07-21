@@ -65,13 +65,14 @@ Running it looks like this (human-readable on a terminal):
 ```console
 $ blueprint-state.sh check --human
 HARD — the map contradicts reality (blocks merge):
-  DRIFT     007-refunds  built spec not in the map   → /speckit.blueprint.distill 007-refunds
+  DRIFT     007-refunds built spec not in the map   → /speckit.blueprint.distill 007-refunds
 
 SOFT — the map may be behind (advisory):
-  STALE     src/payments  code changed since mapped   → /speckit.blueprint.remap src/payments
-  UNMAPPED  src/notifications  tracked code no section maps   → /speckit.blueprint.init --from-code src/notifications
+  STALE     src/payments code changed since mapped (b55500a1 -> 448a74e2)   → /speckit.blueprint.remap src/payments
+  UNSTAMPED src/billing no git baseline recorded yet   → blueprint-state.sh restamp --path src/billing
+  UNMAPPED  src/notifications tracked code no section maps   → /speckit.blueprint.init --from-code src/notifications
 
-1 blocking, 2 advisory
+1 blocking, 3 advisory
 $ echo $?
 1
 ```
@@ -89,15 +90,15 @@ human-readable on a terminal**; `--json`/`--human` force either. (`status` is th
 human dashboard and always prints prose — use `check` for a machine-readable view.)
 
 ```json
-{ "blueprint_schema": "1", "command": "check", "in_sync": false,
-  "blocking": 1, "advisory": 1,
+{ "blueprint_schema": "1", "command": "check", "blueprint": "docs/blueprint.md",
+  "in_sync": false, "blocking": 1, "advisory": 1, "strict": false,
   "issues": [
     { "severity": "hard", "type": "drift", "target": "007-refunds",
       "detail": "built spec not in the map",
       "remedy": { "run": "/speckit.blueprint.distill 007-refunds", "kind": "authored" } },
-    { "severity": "soft", "type": "stale", "target": "src/payments",
-      "detail": "code changed since mapped",
-      "remedy": { "run": "blueprint-state.sh restamp --path src/payments", "kind": "deterministic" } }
+    { "severity": "soft", "type": "unstamped", "target": "src/billing",
+      "detail": "no git baseline recorded yet",
+      "remedy": { "run": "blueprint-state.sh restamp --path src/billing", "kind": "deterministic" } }
   ] }
 ```
 
@@ -110,6 +111,11 @@ check --json → for each issue, run remedy.run:
   · kind=authored      → run the agent, land it as a reviewable PR
 → re-run check → exit 0 when the map matches reality
 ```
+
+Be clear-eyed about the split: **`unstamped` is the only `deterministic` remedy** —
+refreshing a baseline needs no judgment. Everything else (`drift`, `dangling`, `stale`,
+`unmapped`, `unmanaged`) is `authored`, meaning an agent rewrites map prose and a human
+reviews the PR. The `kind` field exists so CI never has to guess which is which.
 
 ## Commands
 

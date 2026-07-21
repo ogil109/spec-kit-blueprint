@@ -211,7 +211,8 @@ if [ "$CMD" = "check" ]; then
       elif [ "$s" = "NONE" ]; then
         add soft unstamped "$p" "no git baseline recorded yet" "blueprint-state.sh restamp --path $p" deterministic
       elif [ "$cur" != "$s" ]; then
-        add soft stale "$p" "code changed since mapped ($s -> $cur)" "/speckit.blueprint.remap $p" authored
+        # abbreviate like git: a full 40-char pair is unreadable in a CI log line
+        add soft stale "$p" "code changed since mapped (${s:0:8} -> ${cur:0:8})" "/speckit.blueprint.remap $p" authored
       fi
     done < <(code_markers)
 

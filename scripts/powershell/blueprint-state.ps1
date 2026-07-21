@@ -124,7 +124,8 @@ if ($Command -eq "check") {
       $cur = Get-CurSha $m.path
       if (-not $cur)             { $issues += [pscustomobject]@{ severity="hard"; type="dangling"; target=$m.path; detail="map points at code that no longer exists"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
       elseif ($m.sha -eq "NONE") { $issues += [pscustomobject]@{ severity="soft"; type="unstamped"; target=$m.path; detail="no git baseline recorded yet"; run="blueprint-state.ps1 restamp --path $($m.path)"; kind="deterministic" } }
-      elseif ($cur -ne $m.sha)   { $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($($m.sha) -> $cur)"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
+      # abbreviate like git: a full 40-char pair is unreadable in a CI log line
+      elseif ($cur -ne $m.sha)   { $short = { param($h) if ($h.Length -gt 8) { $h.Substring(0,8) } else { $h } }; $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($(& $short $m.sha) -> $(& $short $cur))"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
     }
     # unmapped code (coverage): tracked code under a mapped root that no section covers
     $mappedPaths = @(Get-CodeMarkers | ForEach-Object { $_.path })
