@@ -1,0 +1,30 @@
+[project]
+name = "spec-kit-blueprint"
+version = "0.1.0"
+description = "Blueprint — a Spec Kit extension: a living architecture map kept honest by a deterministic, machine-first CI gate."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+dependencies = []
+
+# The extension itself is pure bash + git and ships no Python. This project file
+# exists only to pin the *development* toolchain (commit conventions, releases).
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+  "commitizen>=4.1",
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "pep621"
+tag_format = "v$version"
+version_files = [
+  "extension.yml:^  version:",
+]
+update_changelog_on_bump = true
+changelog_incremental = true
+changelog_merge_prerelease = true
+major_version_zero = true

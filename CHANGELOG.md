@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Execution-verify the PowerShell oracle (`scripts/powershell/blueprint-state.ps1`)
   on a Windows/pwsh environment (the Bash oracle is tested; the port is written for parity).
 
-## [1.0.0] - 2026-06-26
+## [0.1.0] - 2026-07-21
 
 A focused **coherence layer** for spec-driven projects: a living, collapsing
 architecture map plus a deterministic CI gate that keeps it honest.
@@ -90,4 +90,4 @@ architecture map plus a deterministic CI gate that keeps it honest.
 ---
 
 [Unreleased]: https://github.com/ogil109/spec-kit-blueprint/tree/main
-[1.0.0]: https://github.com/ogil109/spec-kit-blueprint/releases/tag/v1.0.0
+[0.1.0]: https://github.com/ogil109/spec-kit-blueprint/releases/tag/v0.1.0

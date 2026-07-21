@@ -23,6 +23,35 @@ CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
 specify extension add --dev /path/to/spec-kit-blueprint
 ```
 
+## Commit conventions & releases
+
+The extension ships **no Python** — it's bash + git. `pyproject.toml` exists only to pin
+the development toolchain, so setup is:
+
+```bash
+uv sync --group dev          # installs commitizen into .venv
+```
+
+Commits follow [Conventional Commits](https://www.conventionalcommits.org/); CI validates
+every PR's commit messages with `cz check`. Write them with the prompt, or by hand:
+
+```bash
+uv run cz commit             # guided prompt
+uv run cz check --rev-range origin/main..HEAD   # what CI runs on your PR
+```
+
+Releases are **generated, never hand-written**:
+
+```bash
+uv run cz bump               # infers the version from commit types, updates
+                             # pyproject.toml + extension.yml, prepends the
+                             # CHANGELOG entry, and creates the vX.Y.Z tag
+```
+
+Two honest notes: the initial commit predates these conventions, so `cz check` is scoped
+to a PR's own range rather than the whole history; and the `0.1.0` CHANGELOG entry is
+hand-written for the same reason — commitizen owns every entry from `0.2.0` onward.
+
 ## Guidelines
 
 - Open an issue to discuss anything larger than a fix before sending a PR.
