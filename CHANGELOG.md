@@ -8,6 +8,12 @@ do not hand-edit, it is rewritten in full. This project adheres to
 Each release's narrative — why a change was made, and its caveats — is in the
 [GitHub release notes](https://github.com/ogil109/spec-kit-blueprint/releases).
 
+## v0.1.3 (2026-07-22)
+
+### Fixed
+
+- **oracle**: keep issue fields aligned when target is empty (unmanaged)
+
 ## v0.1.2 (2026-07-21)
 
 ### Fixed
