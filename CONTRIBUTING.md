@@ -63,9 +63,12 @@ PR's own range rather than the whole history.
 - Keep the oracle **deterministic and dependency-free** (bash + git); agent-authored
   behavior lives in the command markdown, not the script.
 - Add or update a test for any change to `check`/`next`/`status`/`restamp` behavior.
-- **Help wanted:** the PowerShell port (`scripts/powershell/blueprint-state.ps1`)
-  is mirrored from the Bash oracle but **not yet execution-verified** — a Windows/pwsh
-  maintainer to verify it is very welcome.
+- **Help wanted:** the PowerShell port (`scripts/powershell/blueprint-state.ps1`) is
+  execution-verified at output parity with the Bash oracle on **pwsh 7.4 / Linux**, but
+  **not on Windows** — path separators and git-for-Windows are the untested surface. A
+  Windows maintainer to confirm it there is very welcome.
+- Keep the two oracles at parity. They are diffed by running both over the same fixture and
+  comparing `check --json`; a divergence has already caught a real bug in the Bash side.
 
 ## License
 
