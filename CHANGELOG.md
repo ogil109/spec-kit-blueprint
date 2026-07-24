@@ -8,6 +8,20 @@ do not hand-edit, it is rewritten in full. This project adheres to
 Each release's narrative — why a change was made, and its caveats — is in the
 [GitHub release notes](https://github.com/ogil109/spec-kit-blueprint/releases).
 
+## v0.2.0 (2026-07-24)
+
+### BREAKING CHANGE
+
+- commands are now `/speckit.blueprint-index.*` (was
+`/speckit.blueprint.*`) and the install path is `.specify/extensions/blueprint-index/`.
+The oracle's config-path lookup, every emitted remedy string, both ports, the
+docs, and the tests are updated to match. The display name is now "Blueprint
+Index — Living Architecture Map" to disambiguate from the existing "Blueprint".
+
+### Changed
+
+- rename extension id blueprint -> blueprint-index
+
 ## v0.1.3 (2026-07-22)
 
 ### Fixed

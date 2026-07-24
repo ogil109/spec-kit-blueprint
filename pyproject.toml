@@ -1,6 +1,6 @@
 [project]
 name = "spec-kit-blueprint"
-version = "0.1.3"
+version = "0.2.0"
 description = "Blueprint — a Spec Kit extension: a living architecture map kept honest by a deterministic, machine-first CI gate."
 readme = "README.md"
 license = "MIT"
