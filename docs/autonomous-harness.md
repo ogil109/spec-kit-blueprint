@@ -17,7 +17,7 @@ Repeat until the oracle reports `done`, you hit a stop bound, or every remaining
 is parked:
 
 1. **Ask the oracle.** Run
-   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh next --json`
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh next --json`
    (PowerShell: `.../powershell/blueprint-state.ps1 next --json`). Pass `--skip <slug>`
    for every parked slice (repeatable). Parse `{has_next, phase, slug, reason}`.
 
@@ -35,7 +35,7 @@ is parked:
    | `plan` | `/speckit.plan` for `slug`. |
    | `tasks` | `/speckit.tasks` for `slug`. |
    | `implement` | `/speckit.implement` for `slug`. |
-   | `distill` | `/speckit.blueprint.distill` `slug` — collapse the finished slice to a digest + pointer (and stamp its code baseline). |
+   | `distill` | `/speckit.blueprint-index.distill` `slug` — collapse the finished slice to a digest + pointer (and stamp its code baseline). |
 
    Do the step properly and completely. The oracle only advances when the phase's
    artifact actually exists on disk, so a half-done phase is simply re-selected next
@@ -68,7 +68,7 @@ good way to preview what the loop would do.
 When the loop ends, report: why it stopped (`done` / budget / stop-before /
 all-remaining-parked); what advanced this run, slice by slice (phase → phase); parked
 slices and exactly what each needs from a human; and the current
-`/speckit.blueprint.status` snapshot with how to resume.
+`/speckit.blueprint-index.status` snapshot with how to resume.
 
 ## Recommended constitution principle
 

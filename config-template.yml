@@ -1,5 +1,5 @@
 # Blueprint extension configuration
-# Installed to: .specify/extensions/blueprint/blueprint-config.yml
+# Installed to: .specify/extensions/blueprint-index/blueprint-config.yml
 # Layered: extension defaults < this file < blueprint-config.local.yml < SPECKIT_BLUEPRINT_* env
 
 blueprint:

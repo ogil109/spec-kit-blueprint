@@ -119,11 +119,11 @@ assert u, 'no unmanaged issue emitted'
 i=u[0]
 assert i['target']=='', f\"target should be empty, got {i['target']!r}\"
 assert 'not processed' in i['detail'], f\"detail wrong: {i['detail']!r}\"
-assert i['remedy']['run']=='/speckit.blueprint.init', f\"run shifted: {i['remedy']['run']!r}\"
+assert i['remedy']['run']=='/speckit.blueprint-index.init', f\"run shifted: {i['remedy']['run']!r}\"
 assert i['remedy']['kind']=='authored', f\"kind shifted: {i['remedy']['kind']!r}\"
 " >/dev/null 2>&1; assert "unmanaged (empty target) keeps fields aligned in JSON" $? "$umjson"
 umhuman="$(bash "$ORACLE" check --human "${D[@]}" 2>/dev/null)"
-echo "$umhuman" | grep -q 'UNMANAGED .* → /speckit.blueprint.init'; assert "unmanaged human remedy is the init command, not a shifted field" $? "$umhuman"
+echo "$umhuman" | grep -q 'UNMANAGED .* → /speckit.blueprint-index.init'; assert "unmanaged human remedy is the init command, not a shifted field" $? "$umhuman"
 
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"

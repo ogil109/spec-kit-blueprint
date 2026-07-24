@@ -53,7 +53,7 @@ fi
 
 # ── locate the blueprint doc ──────────────────────────────────────────────────
 if [ -z "$BLUEPRINT" ]; then
-  cfg="$ROOT/.specify/extensions/blueprint/blueprint-config.yml"
+  cfg="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml"
   if [ -f "$cfg" ]; then
     p=$(grep -E '^\s*path:' "$cfg" | head -1 | sed -E 's/^\s*path:\s*"?([^"]*)"?\s*$/\1/')
     [ -n "$p" ] && BLUEPRINT="$ROOT/$p"
@@ -166,7 +166,7 @@ elif [ -f "$BLUEPRINT" ] && [ "$DETAILED_COUNT" -eq 0 ] && [ "$SETTLED_COUNT" -e
   # The doc has sections but the extension has never processed it (zero markers) —
   # e.g. a raw master doc. Don't guess its state; initialize it first.
   NEXT_PHASE="init"
-  NEXT_REASON="blueprint not yet processed by the extension — run /speckit.blueprint.init (${UNMANAGED_COUNT} unmanaged section(s))"
+  NEXT_REASON="blueprint not yet processed by the extension — run /speckit.blueprint-index.init (${UNMANAGED_COUNT} unmanaged section(s))"
 elif [ -f "$BLUEPRINT" ] && [ "$BACKLOG_COUNT" -gt 0 ]; then
   # Backlog exists: a detailed (managed) section, or an unmanaged heading init hasn't
   # processed yet. Which to specify is the agent's judgment.
@@ -177,7 +177,7 @@ elif [ -f "$BLUEPRINT" ] && [ "$SETTLED_COUNT" -gt 0 ]; then
   NEXT_REASON="all sections settled (owned by a spec or by code) — no pending design (run /speckit.specify to start a slice, then distill it)"
 elif [ -f "$BLUEPRINT" ]; then
   # File exists but has no sections at all — an empty blueprint.
-  NEXT_PHASE="specify"; NEXT_REASON="blueprint has no subsystem sections yet — add some, or run /speckit.blueprint.init"
+  NEXT_PHASE="specify"; NEXT_REASON="blueprint has no subsystem sections yet — add some, or run /speckit.blueprint-index.init"
 fi
 HAS_NEXT=true; [ "$NEXT_PHASE" = "done" ] && HAS_NEXT=false
 
@@ -201,10 +201,10 @@ if [ "$CMD" = "check" ]; then
   add() { ISSUES+=("$1$US$2$US$3$US$4$US$5$US$6"); }
 
   [ "$UNMANAGED_COUNT" -gt 0 ] && \
-    add soft unmanaged "" "${UNMANAGED_COUNT} section(s) not processed by the extension" "/speckit.blueprint.init" authored
+    add soft unmanaged "" "${UNMANAGED_COUNT} section(s) not processed by the extension" "/speckit.blueprint-index.init" authored
   if [ "${#DISTILL_DRIFT[@]}" -gt 0 ]; then
     for s in "${DISTILL_DRIFT[@]}"; do
-      add hard drift "$s" "built spec not in the map" "/speckit.blueprint.distill $s" authored
+      add hard drift "$s" "built spec not in the map" "/speckit.blueprint-index.distill $s" authored
     done
   fi
   if is_git; then
@@ -212,12 +212,12 @@ if [ "$CMD" = "check" ]; then
       [ -n "$m" ] || continue
       p="$(marker_path "$m")"; s="$(marker_sha "$m")"; cur="$(current_sha "$p")"
       if [ -z "$cur" ]; then
-        add hard dangling "$p" "map points at code that no longer exists" "/speckit.blueprint.remap $p" authored
+        add hard dangling "$p" "map points at code that no longer exists" "/speckit.blueprint-index.remap $p" authored
       elif [ "$s" = "NONE" ]; then
         add soft unstamped "$p" "no git baseline recorded yet" "blueprint-state.sh restamp --path $p" deterministic
       elif [ "$cur" != "$s" ]; then
         # abbreviate like git: a full 40-char pair is unreadable in a CI log line
-        add soft stale "$p" "code changed since mapped (${s:0:8} -> ${cur:0:8})" "/speckit.blueprint.remap $p" authored
+        add soft stale "$p" "code changed since mapped (${s:0:8} -> ${cur:0:8})" "/speckit.blueprint-index.remap $p" authored
       fi
     done < <(code_markers)
 
@@ -238,7 +238,7 @@ if [ "$CMD" = "check" ]; then
       done | sort -u)
       for d in $uncovered; do
         keep=1; for o in $uncovered; do [ "$o" != "$d" ] && case "$d" in "$o"/*) keep=0; break;; esac; done
-        [ "$keep" = 1 ] && add soft unmapped "$d" "tracked code no section maps" "/speckit.blueprint.init --from-code $d" authored
+        [ "$keep" = 1 ] && add soft unmapped "$d" "tracked code no section maps" "/speckit.blueprint-index.init --from-code $d" authored
       done
     fi
   else
@@ -334,7 +334,7 @@ fi
 echo
 echo "Distill drift (spec exists, blueprint not yet collapsed):"
 if [ "${#DISTILL_DRIFT[@]}" -eq 0 ]; then echo "  (none — blueprint in sync)"; else
-  for s in "${DISTILL_DRIFT[@]}"; do echo "  - $s  → /speckit.blueprint.distill $s"; done
+  for s in "${DISTILL_DRIFT[@]}"; do echo "  - $s  → /speckit.blueprint-index.distill $s"; done
 fi
 echo
 echo "Next action: $NEXT_PHASE ${NEXT_SLUG:+($NEXT_SLUG)}"

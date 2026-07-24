@@ -40,7 +40,7 @@ $ARGUMENTS
    `.specify/memory/blueprint.md`), else create from the template at the config path.
    If a doc path was given, that doc **is** the blueprint (normalize it in place); do
    not silently create a second one.
-3. Template: `.specify/extensions/blueprint/templates/blueprint-template.md`.
+3. Template: `.specify/extensions/blueprint-index/templates/blueprint-template.md`.
 
 ## The provenance marker (the deterministic record)
 
@@ -95,7 +95,7 @@ never delete a section's design detail.**
    (`context` / `detailed` / `distilled → specs/<slug>` / `owned by code → src/<area>`).
 
 7. **Record code baselines.** Run the oracle's restamp to fill every `sha=NONE`:
-   `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh restamp` (or the
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` can detect later code drift.
 
 ## Report Back

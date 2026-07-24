@@ -12,8 +12,8 @@ spec stands. Read-only.
 
 Run the state script and present its output:
 
-- **Bash**: `bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh status`
-- **PowerShell**: `.specify/extensions/blueprint/scripts/powershell/blueprint-state.ps1 status`
+- **Bash**: `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh status`
+- **PowerShell**: `.specify/extensions/blueprint-index/scripts/powershell/blueprint-state.ps1 status`
 
 If it adds value, point the user at the fix for any drift it reports — distill drift
 → `__SPECKIT_COMMAND_BLUEPRINT_DISTILL__`, and remind them the deterministic

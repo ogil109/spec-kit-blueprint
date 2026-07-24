@@ -59,7 +59,7 @@
 ## Table of Contents
 
 The index *and* the architecture map. Each entry notes its status so the map and
-the sections agree. Keep it current (the /speckit.blueprint.* commands do this).
+the sections agree. Keep it current (the /speckit.blueprint-index.* commands do this).
 
 - §1 [Subsystem A] — [one line]; **detailed** (no spec yet)
 - §2 [Subsystem B] — [one line]; **distilled** → `specs/00X-slug`

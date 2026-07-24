@@ -41,7 +41,7 @@ if (-not $Root) {
 
 # locate blueprint
 if (-not $Blueprint) {
-  $cfg = Join-Path $Root ".specify/extensions/blueprint/blueprint-config.yml"
+  $cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
   if (Test-Path $cfg) {
     $m = Select-String -Path $cfg -Pattern '^\s*path:\s*"?([^"]*)"?\s*$' | Select-Object -First 1
     if ($m) { $Blueprint = Join-Path $Root $m.Matches[0].Groups[1].Value }
@@ -117,15 +117,15 @@ if ($Command -eq "check") {
   # Tiered: HARD (drift, dangling) blocks; SOFT (stale, unstamped, unmanaged) is advisory
   # unless --strict. Each issue carries a self-describing remedy + kind (see bash oracle).
   $issues = @()
-  if ($unmanagedCount -gt 0) { $issues += [pscustomobject]@{ severity="soft"; type="unmanaged"; target=""; detail="$unmanagedCount section(s) not processed by the extension"; run="/speckit.blueprint.init"; kind="authored" } }
-  foreach ($s in $drift) { $issues += [pscustomobject]@{ severity="hard"; type="drift"; target=$s; detail="built spec not in the map"; run="/speckit.blueprint.distill $s"; kind="authored" } }
+  if ($unmanagedCount -gt 0) { $issues += [pscustomobject]@{ severity="soft"; type="unmanaged"; target=""; detail="$unmanagedCount section(s) not processed by the extension"; run="/speckit.blueprint-index.init"; kind="authored" } }
+  foreach ($s in $drift) { $issues += [pscustomobject]@{ severity="hard"; type="drift"; target=$s; detail="built spec not in the map"; run="/speckit.blueprint-index.distill $s"; kind="authored" } }
   if (Test-Git) {
     foreach ($m in (Get-CodeMarkers)) {
       $cur = Get-CurSha $m.path
-      if (-not $cur)             { $issues += [pscustomobject]@{ severity="hard"; type="dangling"; target=$m.path; detail="map points at code that no longer exists"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
+      if (-not $cur)             { $issues += [pscustomobject]@{ severity="hard"; type="dangling"; target=$m.path; detail="map points at code that no longer exists"; run="/speckit.blueprint-index.remap $($m.path)"; kind="authored" } }
       elseif ($m.sha -eq "NONE") { $issues += [pscustomobject]@{ severity="soft"; type="unstamped"; target=$m.path; detail="no git baseline recorded yet"; run="blueprint-state.ps1 restamp --path $($m.path)"; kind="deterministic" } }
       # abbreviate like git: a full 40-char pair is unreadable in a CI log line
-      elseif ($cur -ne $m.sha)   { $short = { param($h) if ($h.Length -gt 8) { $h.Substring(0,8) } else { $h } }; $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($(& $short $m.sha) -> $(& $short $cur))"; run="/speckit.blueprint.remap $($m.path)"; kind="authored" } }
+      elseif ($cur -ne $m.sha)   { $short = { param($h) if ($h.Length -gt 8) { $h.Substring(0,8) } else { $h } }; $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($(& $short $m.sha) -> $(& $short $cur))"; run="/speckit.blueprint-index.remap $($m.path)"; kind="authored" } }
     }
     # unmapped code (coverage): tracked code under a mapped root that no section covers
     $mappedPaths = @(Get-CodeMarkers | ForEach-Object { $_.path })
@@ -141,7 +141,7 @@ if ($Command -eq "check") {
       $uncovered = @($uncovered | Sort-Object -Unique)
       foreach ($d in $uncovered) {
         if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
-        $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint.init --from-code $d"; kind="authored" }
+        $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint-index.init --from-code $d"; kind="authored" }
       }
     }
   } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness/coverage checks skipped") }
@@ -187,13 +187,13 @@ if ($drift.Count -gt 0) {
 } elseif ($inflight.Count -gt 0) {
   $nextPhase = $inflight[0].phase; $nextSlug = $inflight[0].slug; $reason = "in-flight slice; next build phase by artifact frontier"
 } elseif (($Blueprint -and (Test-Path $Blueprint)) -and $detailedCount -eq 0 -and $settledCount -eq 0 -and $unmanagedCount -gt 0) {
-  $nextPhase = "init"; $reason = "blueprint not yet processed by the extension — run /speckit.blueprint.init ($unmanagedCount unmanaged section(s))"
+  $nextPhase = "init"; $reason = "blueprint not yet processed by the extension — run /speckit.blueprint-index.init ($unmanagedCount unmanaged section(s))"
 } elseif (($Blueprint -and (Test-Path $Blueprint)) -and $backlogCount -gt 0) {
   $nextPhase = "specify"; $reason = "no in-flight work; specify the next detailed subsystem from the blueprint"
 } elseif (($Blueprint -and (Test-Path $Blueprint)) -and $settledCount -gt 0) {
   $reason = "all sections settled (owned by a spec or by code) — no pending design (run /speckit.specify to start a slice, then distill it)"
 } elseif ($Blueprint -and (Test-Path $Blueprint)) {
-  $nextPhase = "specify"; $reason = "blueprint has no subsystem sections yet — add some, or run /speckit.blueprint.init"
+  $nextPhase = "specify"; $reason = "blueprint has no subsystem sections yet — add some, or run /speckit.blueprint-index.init"
 }
 $hasNext = ($nextPhase -ne "done")
 
@@ -217,7 +217,7 @@ Write-Output "In-flight (spec exists, build not complete):"
 if ($inflight.Count -eq 0) { Write-Output "  (none)" } else { $inflight | ForEach-Object { Write-Output "  - $($_.slug)  → next: $($_.phase)" } }
 Write-Output ""
 Write-Output "Distill drift (spec exists, blueprint not yet collapsed):"
-if ($drift.Count -eq 0) { Write-Output "  (none — blueprint in sync)" } else { $drift | ForEach-Object { Write-Output "  - $_  → /speckit.blueprint.distill $_" } }
+if ($drift.Count -eq 0) { Write-Output "  (none — blueprint in sync)" } else { $drift | ForEach-Object { Write-Output "  - $_  → /speckit.blueprint-index.distill $_" } }
 Write-Output ""
 Write-Output "Next action: $nextPhase $(if($nextSlug){"($nextSlug)"})"
 Write-Output "  ($reason)"

@@ -1,4 +1,4 @@
-# Blueprint — Living Architecture Map
+# Blueprint Index — Living Architecture Map
 
 [![tests](https://github.com/ogil109/spec-kit-blueprint/actions/workflows/tests.yml/badge.svg)](https://github.com/ogil109/spec-kit-blueprint/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -65,12 +65,12 @@ Running it looks like this (human-readable on a terminal):
 ```console
 $ blueprint-state.sh check --human
 HARD — the map contradicts reality (blocks merge):
-  DRIFT     007-refunds built spec not in the map   → /speckit.blueprint.distill 007-refunds
+  DRIFT     007-refunds built spec not in the map   → /speckit.blueprint-index.distill 007-refunds
 
 SOFT — the map may be behind (advisory):
-  STALE     src/payments code changed since mapped (b55500a1 -> 448a74e2)   → /speckit.blueprint.remap src/payments
+  STALE     src/payments code changed since mapped (b55500a1 -> 448a74e2)   → /speckit.blueprint-index.remap src/payments
   UNSTAMPED src/billing no git baseline recorded yet   → blueprint-state.sh restamp --path src/billing
-  UNMAPPED  src/notifications tracked code no section maps   → /speckit.blueprint.init --from-code src/notifications
+  UNMAPPED  src/notifications tracked code no section maps   → /speckit.blueprint-index.init --from-code src/notifications
 
 1 blocking, 3 advisory
 $ echo $?
@@ -79,7 +79,7 @@ $ echo $?
 
 ```yaml
 # .github/workflows/blueprint.yml — blocks only when the map is factually behind
-- run: bash .specify/extensions/blueprint/scripts/bash/blueprint-state.sh check
+- run: bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh check
 ```
 
 ## Machine-first output — built to be consumed
@@ -95,7 +95,7 @@ human dashboard and always prints prose — use `check` for a machine-readable v
   "issues": [
     { "severity": "hard", "type": "drift", "target": "007-refunds",
       "detail": "built spec not in the map",
-      "remedy": { "run": "/speckit.blueprint.distill 007-refunds", "kind": "authored" } },
+      "remedy": { "run": "/speckit.blueprint-index.distill 007-refunds", "kind": "authored" } },
     { "severity": "soft", "type": "unstamped", "target": "src/billing",
       "detail": "no git baseline recorded yet",
       "remedy": { "run": "blueprint-state.sh restamp --path src/billing", "kind": "deterministic" } }
@@ -121,10 +121,10 @@ reviews the PR. The `kind` field exists so CI never has to guess which is which.
 
 | Command | What it does |
 |---------|--------------|
-| `speckit.blueprint.init` | Scaffold the map — from a design doc (greenfield) or `--from-code` to reverse-map existing code (brownfield). Idempotent. |
-| `speckit.blueprint.status` | Read-only dashboard: detailed / settled / context / unmanaged sections, drift, where each spec stands. |
-| `speckit.blueprint.distill` | Collapse a finished spec's section to a digest + pointer; stamp the slice's code baseline. |
-| `speckit.blueprint.remap` | Re-derive a section from current code + refresh its git baseline (resync after out-of-band changes). |
+| `speckit.blueprint-index.init` | Scaffold the map — from a design doc (greenfield) or `--from-code` to reverse-map existing code (brownfield). Idempotent. |
+| `speckit.blueprint-index.status` | Read-only dashboard: detailed / settled / context / unmanaged sections, drift, where each spec stands. |
+| `speckit.blueprint-index.distill` | Collapse a finished spec's section to a digest + pointer; stamp the slice's code baseline. |
+| `speckit.blueprint-index.remap` | Re-derive a section from current code + refresh its git baseline (resync after out-of-band changes). |
 
 Plus the script-level gate the commands and CI share: `blueprint-state.sh check` (the
 tiered gate) and `blueprint-state.sh restamp` (deterministic baseline refresh).
@@ -146,18 +146,18 @@ parity with the Bash oracle on pwsh 7.4 (Linux); Windows path handling is still 
 
 ```bash
 # Brownfield — reverse-map an existing repo into a code-owned map
-/speckit.blueprint.init --from-code
-/speckit.blueprint.status
+/speckit.blueprint-index.init --from-code
+/speckit.blueprint-index.status
 
 # Greenfield — seed the map from a design doc
-/speckit.blueprint.init docs/master-spec.md
+/speckit.blueprint-index.init docs/master-spec.md
 
 # Build with your normal spec-kit flow; when a slice ships, collapse it into the map:
-/speckit.blueprint.distill 001-some-slice
+/speckit.blueprint-index.distill 001-some-slice
 
 # Keep it honest in CI (blocks only on hard drift; --strict to block on advisories too)
 blueprint-state.sh check
-/speckit.blueprint.remap src/payments   # after a change flagged STALE
+/speckit.blueprint-index.remap src/payments   # after a change flagged STALE
 ```
 
 ## The blueprint document
