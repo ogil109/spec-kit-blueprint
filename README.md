@@ -126,8 +126,49 @@ reviews the PR. The `kind` field exists so CI never has to guess which is which.
 | `speckit.blueprint-index.distill` | Collapse a finished spec's section to a digest + pointer; stamp the slice's code baseline. |
 | `speckit.blueprint-index.remap` | Re-derive a section from current code + refresh its git baseline (resync after out-of-band changes). |
 
-Plus the script-level gate the commands and CI share: `blueprint-state.sh check` (the
-tiered gate) and `blueprint-state.sh restamp` (deterministic baseline refresh).
+Plus the script-level oracles the commands and CI share: `blueprint-state.sh check` (the
+tiered gate), `blueprint-state.sh restamp` (deterministic baseline refresh), and
+`blueprint-slice.sh` (the deterministic brownfield partitioner).
+
+## The deterministic on-ramp (`init --from-code`)
+
+A map that comes out different on every on-ramp run is not a map you can trust, so the
+brownfield on-ramp separates two jobs the way architecture-recovery tooling always has —
+**deterministic enumeration first, subjective interpretation second**:
+
+1. `blueprint-slice.sh` computes the **section set** purely from `git ls-files` +
+   checked-in config: same repo state + same config ⇒ **byte-identical partition**. It
+   never opens a file — directory sizes, path names, and the *presence* of build
+   manifests (`pyproject.toml`, `package.json`, `go.mod`, …) are the only evidence — so
+   it stays language-agnostic. Every tracked file lands in exactly one bucket:
+   a **section** (code or context), an **excluded** pattern match, or a reported
+   root-level file. Nothing is silently absent.
+2. The agent then authors each section's **prose** (role, mechanics, entry points) —
+   judgment goes into describing the code and, when the cut is wrong, into
+   `blueprint-config.yml` (`slice.*`, `coverage.exclude`) followed by a re-run: the
+   override is checked in and replays identically forever.
+
+Re-runs against an existing map are **additive**: already-covered paths are subtracted,
+new code shows up as new proposed sections, and an existing section that outgrew
+`slice.max_files` surfaces as an advisory instead of being silently re-partitioned.
+The `check` gate closes the loop: its coverage scan spans **all** top-level directories,
+so a tree the on-ramp missed (or code added later) is flagged `unmapped` rather than
+staying invisible.
+
+```console
+$ blueprint-slice.sh
+blueprint-slice — deterministic partition (max_files=400, min_files=3)
+
+  CODE     src/core                        350 files  [fits]
+  CODE     src (remainder, 3 markers)       12 files  [remainder]
+  CODE     pkg/mylib                         2 files  [module]
+  CONTEXT  docs                           1181 files  [context-dir]
+
+  root-level files (outside coverage by design): 8
+  excluded:
+    .github              (pattern: .*)
+    specs                (pattern: specs)
+```
 
 ## Install
 
@@ -212,14 +253,20 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
   the gate usable in real CI; the tradeoff is that out-of-band code changes are *surfaced
   and reconciled*, not hard-blocked (unless `--strict`). Whether this balance is right for
   a given team is exactly what real usage will tell us.
-- **Map content is agent-authored.** `init` (mapping a repo) and `distill` (writing a
-  digest) are done by the agent and reviewed; only the **gate and the oracle** are
-  deterministic. When the map feeds every spec, its authoring quality matters.
+- **Map structure is computed; map prose is agent-authored.** The brownfield on-ramp's
+  *section set* comes from the deterministic partitioner (`blueprint-slice.sh`) — two
+  independent `init --from-code` runs produce the same structure, and every human
+  override lives in checked-in config where it replays identically. What stays
+  agent-authored (and human-reviewed) is the *prose* inside each computed section and
+  the `distill` digests; the gate reads markers, never prose, so prose variation can't
+  move the gate. When the map feeds every spec, that authoring quality still matters.
 - **Two known edges.** A `[NEEDS CLARIFICATION]` marker that a formatter has *wrapped
   across lines* is not detected (the scan is line-based), so a spec with an open question
-  could advance a step; and the unmapped-code scan word-splits its root list, so a
-  **top-level** directory whose name contains a space is not scanned. Both are narrow, and
-  the second is unreachable in most repos.
+  could advance a step. And **root-level loose files** (READMEs, manifests, a stray
+  `main.py` at the repo root) are outside the coverage scan by design — a repo that
+  keeps real source at its root should move it into a directory or accept that the map
+  won't track it. Paths containing spaces cannot be represented in markers and are
+  excluded (reported by the partitioner, never silently).
 - **Prior art:** the "spec↔code drift gate" concept has been articulated in the 2026
   literature (e.g. arXiv 2606.27045). This extension's angle is being **brownfield-first,
   language-agnostic (git baselines, not per-language static analysis), low-friction, and
@@ -257,6 +304,7 @@ bash tests/oracle_test.sh            # state frontier, provenance, context
 bash tests/check_remap_test.sh       # the tiered gate: hard/soft, --strict, JSON contract
 bash tests/harness_loop_test.sh      # the autonomous-harness loop
 bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms
+bash tests/slicer_test.sh            # the deterministic partitioner
 ```
 
 Iterate locally with `specify extension add /path/to/spec-kit-blueprint --dev`. Please open an
