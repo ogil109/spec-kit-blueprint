@@ -18,6 +18,7 @@ jobs:
           bash tests/check_remap_test.sh
           bash tests/harness_loop_test.sh
           bash tests/portability_lint_test.sh
+          bash tests/slicer_test.sh
 
   commits:
     name: commit conventions

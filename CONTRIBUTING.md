@@ -14,6 +14,7 @@ bash tests/oracle_test.sh            # state frontier, provenance, context
 bash tests/check_remap_test.sh       # the tiered gate: hard/soft, --strict, JSON contract, coverage
 bash tests/harness_loop_test.sh      # the autonomous-harness loop
 bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms (BSD sed safety)
+bash tests/slicer_test.sh            # the deterministic partitioner: rules, determinism, blind-spot closure
 ```
 
 CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
