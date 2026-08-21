@@ -36,9 +36,16 @@ provides:
       description: "Blueprint location and distillation behavior"
       required: false
 
+  # Each entry must be a name/file mapping: spec-kit's manifest validator
+  # (v0.16.5+, the first release to support provides.scripts) rejects bare
+  # path strings outright, failing the documented `specify extension add` path.
   scripts:
-    - "scripts/bash/blueprint-state.sh"
-    - "scripts/powershell/blueprint-state.ps1"
+    - name: blueprint-state
+      file: scripts/bash/blueprint-state.sh
+      description: "The tiered coherence gate (check) and deterministic baseline refresh (restamp)"
+    - name: blueprint-state-ps1
+      file: scripts/powershell/blueprint-state.ps1
+      description: "PowerShell port of the coherence gate, parity-verified against the Bash oracle"
 
 tags:
   - "blueprint"
