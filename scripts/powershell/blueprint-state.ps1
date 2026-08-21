@@ -44,7 +44,13 @@ if (-not $Blueprint) {
   $cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
   if (Test-Path $cfg) {
     $m = Select-String -Path $cfg -Pattern '^\s*path:\s*"?([^"]*)"?\s*$' | Select-Object -First 1
-    if ($m) { $Blueprint = Join-Path $Root $m.Matches[0].Groups[1].Value }
+    if ($m) {
+      $p = $m.Matches[0].Groups[1].Value
+      $Blueprint = Join-Path $Root $p
+      # A configured path that doesn't resolve must be loud (parity with the bash oracle):
+      # silently falling back to auto-detect means a team's real blueprint is ignored.
+      if (-not (Test-Path $Blueprint)) { [Console]::Error.WriteLine("warning: configured blueprint.path '$p' not found — falling back to auto-detect") }
+    }
   }
 }
 if (-not $Blueprint -or -not (Test-Path $Blueprint)) {

@@ -125,6 +125,36 @@ assert i['remedy']['kind']=='authored', f\"kind shifted: {i['remedy']['kind']!r}
 umhuman="$(bash "$ORACLE" check --human "${D[@]}" 2>/dev/null)"
 echo "$umhuman" | grep -q 'UNMANAGED .* → /speckit.blueprint-index.init'; assert "unmanaged human remedy is the init command, not a shifted field" $? "$umhuman"
 
+# 10. configured blueprint.path resolves to a CLEAN path in the JSON contract.
+#     Regression: the resolver used GNU-only \s shorthand; BSD sed passed the raw
+#     YAML line through unchanged, so the "blueprint" field leaked
+#     `  path: "..."` and the file check failed into silent fallback.
+R6="$TMP/repo6"; mkdir -p "$R6/.specify/extensions/blueprint-index" "$R6/custom"
+git -C "$R6" init -q; git -C "$R6" config user.email t@t; git -C "$R6" config user.name t
+printf 'blueprint:\n  path: "custom/map.md"\n' > "$R6/.specify/extensions/blueprint-index/blueprint-config.yml"
+printf '# BP\n## A\n<!-- blueprint:section state=context -->\n' > "$R6/custom/map.md"
+git -C "$R6" add -A; git -C "$R6" commit -qm init
+cfgjson="$(bash "$ORACLE" check --json --root "$R6" 2>/dev/null)"   # no --blueprint: config must resolve it
+echo "$cfgjson" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+assert d['blueprint']=='custom/map.md', f\"blueprint field not a clean path: {d['blueprint']!r}\"
+assert d['in_sync'] is True
+" >/dev/null 2>&1; assert "configured path resolves clean (no raw YAML leak)" $? "$cfgjson"
+
+# 11. configured-but-missing path: warn on stderr, then fall back to auto-detect —
+#     never silently ignore a team's configured blueprint location.
+printf 'blueprint:\n  path: "nope/missing.md"\n' > "$R6/.specify/extensions/blueprint-index/blueprint-config.yml"
+mkdir -p "$R6/docs"; printf '# BP\n## A\n<!-- blueprint:section state=context -->\n' > "$R6/docs/blueprint.md"
+git -C "$R6" add -A; git -C "$R6" commit -qm fallback
+warn="$(bash "$ORACLE" check --json --root "$R6" 2>&1 >/dev/null)"
+echo "$warn" | grep -q "configured blueprint.path 'nope/missing.md' not found"; assert "missing configured path warns on stderr" $? "$warn"
+fbjson="$(bash "$ORACLE" check --json --root "$R6" 2>/dev/null)"
+echo "$fbjson" | python3 -c "
+import json,sys
+assert json.load(sys.stdin)['blueprint']=='docs/blueprint.md'
+" >/dev/null 2>&1; assert "missing configured path still falls back to auto-detect" $? "$fbjson"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
