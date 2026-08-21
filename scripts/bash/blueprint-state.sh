@@ -52,11 +52,20 @@ if [ -z "$ROOT" ]; then
 fi
 
 # ── locate the blueprint doc ──────────────────────────────────────────────────
+# POSIX character classes only ([[:space:]], never the GNU whitespace shorthand):
+# GNU regex shorthands are not POSIX ERE — BSD sed (macOS) passes the line through
+# UNCHANGED on a failed match, silently corrupting the resolved path.
+# tests/portability_lint_test.sh guards this class.
 if [ -z "$BLUEPRINT" ]; then
   cfg="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml"
   if [ -f "$cfg" ]; then
-    p=$(grep -E '^\s*path:' "$cfg" | head -1 | sed -E 's/^\s*path:\s*"?([^"]*)"?\s*$/\1/')
-    [ -n "$p" ] && BLUEPRINT="$ROOT/$p"
+    p=$(grep -E '^[[:space:]]*path:' "$cfg" | head -1 | sed -E 's/^[[:space:]]*path:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/')
+    if [ -n "$p" ]; then
+      BLUEPRINT="$ROOT/$p"
+      # A configured path that doesn't resolve must be loud: silently falling back
+      # to the auto-detect candidates means a team's real blueprint is ignored.
+      [ -f "$BLUEPRINT" ] || echo "warning: configured blueprint.path '$p' not found — falling back to auto-detect" >&2
+    fi
   fi
 fi
 if [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; then
@@ -78,7 +87,7 @@ spec_phase() {
   [ -f "$dir/plan.md" ]  || { echo "plan";  return; }
   [ -f "$dir/tasks.md" ] || { echo "tasks"; return; }
   # implement: tasks.md exists but still has unchecked items → implementing
-  if grep -qE '^\s*-\s*\[ \]' "$dir/tasks.md" 2>/dev/null; then echo "implement"; return; fi
+  if grep -qE '^[[:space:]]*-[[:space:]]*\[ \]' "$dir/tasks.md" 2>/dev/null; then echo "implement"; return; fi
   echo "built"
 }
 
