@@ -311,7 +311,11 @@ if [ "$CMD" = "restamp" ]; then
     cur="$(current_sha "$p")"
     [ -z "$cur" ] && { echo "skip (missing in git): $p"; continue; }
     esc="$(printf '%s' "$p" | sed 's/[|]/\\|/g')"
-    sed -i -E "s|(<!-- blueprint:code path=${esc} sha=)[^ ]+( -->)|\1${cur}\2|" "$BLUEPRINT"
+    # No `sed -i`: BSD sed requires a backup-suffix argument after -i and would
+    # consume `-E` as one, silently disabling extended regex and failing on \1.
+    # A temp-file rewrite is portable across GNU and BSD sed.
+    sed -E "s|(<!-- blueprint:code path=${esc} sha=)[^ ]+( -->)|\1${cur}\2|" "$BLUEPRINT" > "$BLUEPRINT.tmp" \
+      && mv "$BLUEPRINT.tmp" "$BLUEPRINT"
     echo "stamped $p → $cur"; updated=$((updated+1))
   done < <(code_markers)
   echo "restamped $updated marker(s)"; exit 0
