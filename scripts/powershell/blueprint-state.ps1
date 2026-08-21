@@ -167,6 +167,9 @@ if ($Command -eq "check") {
     # before) let a directory the on-ramp never touched stay invisible forever.
     # Root-level loose files are outside coverage by design; the blueprint doc
     # itself is always excluded. Reported at the shallowest uncovered directory.
+    # Only runs when a blueprint exists — with no map at all, the actionable
+    # signal is "run init", not one unmapped issue per directory.
+    if ($Blueprint -and (Test-Path $Blueprint)) {
     $coveredPaths = @(Get-CodeMarkers | ForEach-Object { $_.path }) + @(Get-ContextMarkers)
     $excludes = @(Get-CoverageExcludes)
     $bpRel = if ($Blueprint) { $Blueprint.Replace("$Root/","").Replace("$Root\","") } else { "" }
@@ -190,6 +193,7 @@ if ($Command -eq "check") {
     foreach ($d in $uncovered) {
       if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
       $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint-index.init --from-code $d"; kind="authored" }
+    }
     }
   } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness/coverage checks skipped") }
 

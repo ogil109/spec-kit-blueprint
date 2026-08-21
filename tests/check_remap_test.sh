@@ -214,6 +214,17 @@ gate "${E[@]}"
 { ! echo "$OUT" | grep -q "UNMAPPED.*docs"; }; assert "context marker covers its tree (docs/ not unmapped)" $? "$OUT"
 { ! echo "$OUT" | grep -qE "(STALE|UNSTAMPED|DANGLING).*docs"; }; assert "context coverage carries no staleness" $? "$OUT"
 
+# 14b. no blueprint at all → NO unmapped flood: the actionable signal is init,
+#      not one advisory per directory.
+R8="$TMP/repo8"; mkdir -p "$R8/src" "$R8/.specify"
+git -C "$R8" init -q; git -C "$R8" config user.email t@t; git -C "$R8" config user.name t
+printf 'x\n' > "$R8/src/a.py"; git -C "$R8" add -A; git -C "$R8" commit -qm init
+nbjson="$(bash "$ORACLE" check --json --root "$R8" 2>/dev/null)"
+echo "$nbjson" | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='unmapped']
+" >/dev/null 2>&1; assert "no blueprint -> coverage scan stays silent" $? "$nbjson"
+
 # 15. coverage excludes are configurable: exclude infra/ via config → only tests/ flagged
 mkdir -p "$R7/.specify/extensions/blueprint-index"
 printf 'coverage:\n  exclude:\n    - ".*"\n    - "specs"\n    - "infra"\n' > "$R7/.specify/extensions/blueprint-index/blueprint-config.yml"

@@ -49,6 +49,13 @@ slice:
     - docs
     - doc
     - documentation
+  # Paths pinned as ONE atomic section regardless of size: the thresholds never
+  # descend into them, and ancestors split down to reach them. The checked-in
+  # way to say "this subtree is one subsystem at map altitude" — e.g. a large
+  # test tree that would otherwise partition into dozens of per-area sections.
+  #   pin_dirs:
+  #     - src/tests
+  pin_dirs: []
 
 coverage:
   # Paths the unmapped-code scan never flags (and the slicer never partitions).
