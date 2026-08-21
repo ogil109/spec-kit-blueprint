@@ -46,6 +46,9 @@ provides:
     - name: blueprint-state-ps1
       file: scripts/powershell/blueprint-state.ps1
       description: "PowerShell port of the coherence gate, parity-verified against the Bash oracle"
+    - name: blueprint-slice
+      file: scripts/bash/blueprint-slice.sh
+      description: "Deterministic brownfield partitioner: computes the section set for init --from-code from git ls-files + checked-in config"
 
 tags:
   - "blueprint"
