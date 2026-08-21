@@ -25,10 +25,12 @@ $ARGUMENTS
   use it as the blueprint and stamp/normalize every section. Ideal for an existing
   master doc that already half-follows the pattern.
 - **`--from-code`** (optionally scoped: `--from-code src/<area>`) — *brownfield*:
-  reverse-map the codebase into code-owned sections. Scoped to a single path, it maps
-  **just that area** into one new code-owned section (a *partial* init) without touching
-  the rest — this is the remedy the `check` gate points at for an `unmapped` (new,
-  uncovered) code area.
+  reverse-map the codebase into code-owned sections. **The section set is computed, not
+  chosen**: the deterministic partitioner (`blueprint-slice.sh`) emits it from
+  `git ls-files` + checked-in config, and you author each section's prose — see
+  *Brownfield on-ramp* below. Scoped to a single path, it maps **just that area** (a
+  *partial* init) without touching the rest — this is the remedy the `check` gate
+  points at for an `unmapped` (new, uncovered) code area.
 - **Empty** — scaffold an empty blueprint from the template, or normalize the
   already-configured/auto-detected blueprint.
 
@@ -50,6 +52,14 @@ Every managed section carries a marker directly under its `## ` heading:
 - `<!-- blueprint:section state=detailed -->` — holding pen, design pending.
 - `<!-- blueprint:section state=distilled owner=specs/<slug> -->` — owned by a spec.
 - `<!-- blueprint:section state=code -->` — owned by existing code (brownfield).
+- `<!-- blueprint:section state=context -->` — framing / docs; not a buildable slice.
+
+Code-owned sections additionally carry one `<!-- blueprint:code path=<p> sha=<sha> -->`
+per covered path (a section is a **set** of paths — tree markers for directories, blob
+markers for single files). Context sections may carry
+`<!-- blueprint:context path=<p> -->` coverage markers: the path is on the map (the
+`check` gate won't flag it unmapped) but has **no baseline and no staleness** — it is
+not architecture-bearing buildable code.
 
 The marker is authoritative. A heading **with no marker** is *unmanaged* (external /
 not yet processed) — this run is what stamps it.
@@ -71,10 +81,8 @@ Table of Contents, the header comment):
    spec is **built**, also add its implementation-footprint baseline
    `<!-- blueprint:code path=src/<area> sha=NONE -->` so code drift is caught later.
 
-3. **Unmarked, brownfield (`--from-code`)**: map the code as it exists **today** (role
-   sentence + at-a-glance digest of mechanics/entry points; do not redesign). Stamp
-   `<!-- blueprint:section state=code -->` and `<!-- blueprint:code path=src/<area>
-   sha=NONE -->`.
+3. **Unmarked, brownfield (`--from-code`)**: follow the *Brownfield on-ramp* procedure
+   below — the section set comes from the partitioner, the prose from you.
 
 4. **Unmarked, framing / cross-cutting** (not a buildable slice — e.g. "what this
    system is", scope boundary, key entities/glossary, anti-bias/quality properties,
@@ -99,6 +107,47 @@ never delete a section's design detail.**
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` can detect later code drift.
 
+## Brownfield on-ramp (`--from-code`): structure is computed, prose is authored
+
+Two independent runs of this on-ramp must produce the **same map structure**. That is
+only possible if the slicing decision is not yours. The division of labor:
+
+1. **Run the partitioner first** —
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh slice --json`
+   (add `--scope <dir>` when the init is scoped). Its output is deterministic: same repo
+   state + same config ⇒ byte-identical partition.
+
+2. **The `sections` array IS the section set.** Do not add, drop, merge, split, or
+   resize sections, and do not remap a path to a different section. Each entry becomes
+   one `## <path>` heading (append ` (remainder)` when `"remainder": true`), stamped
+   exactly as emitted:
+   - `kind=code` → `<!-- blueprint:section state=code -->` plus one
+     `<!-- blueprint:code path=<m> sha=NONE -->` per entry in `markers`.
+   - `kind=context` → `<!-- blueprint:section state=context -->` plus one
+     `<!-- blueprint:context path=<m> -->` per entry in `markers`.
+
+3. **Your work is the prose.** For each section, read the code it covers and write the
+   role sentence + at-a-glance digest (mechanics, entry points; do not redesign). Two
+   runs may word this differently — the gate never reads prose, only markers.
+
+4. **Every entry is discharged, nothing silently absent.** The partition accounts for
+   every tracked file: `sections` (mapped), `excluded` (matched a checked-in pattern),
+   or `root_files` (root-level loose files, outside coverage by design). Echo the
+   `excluded` and `root_files` lists and any `advisories` in your report so a human
+   reviews what stayed out — that review is the whole point of the on-ramp.
+
+5. **Disagree with the cut? Change the config, not the map.** Granularity and scope are
+   owned by `blueprint-config.yml` (`slice.max_files`, `slice.min_files`,
+   `slice.boundary_files`, `slice.context_dirs`, `coverage.exclude`). Edit it, re-run
+   the partitioner, re-derive. The override is then checked in and **replays
+   identically on every future run** — a freehand deviation would be lost
+   non-determinism the next run can't reproduce.
+
+6. **Close the loop.** Run restamp (step 7 above), then
+   `blueprint-state.sh check` — the scoped area must report **no `unmapped` issues**.
+   If it does, a section was written without its markers: fix the markers, don't
+   silence the gate.
+
 ## Report Back
 
 - `BLUEPRINT` path; whether created, seeded, or normalized in place.
@@ -114,3 +163,6 @@ never delete a section's design detail.**
 - Never fabricate design detail or code behavior not present in the source.
 - Every managed section must end with exactly one `blueprint:section` marker — that is
   the extension's deterministic record of provenance.
+- **`--from-code` structure is computed, never improvised:** the section set comes from
+  `blueprint-slice.sh` verbatim; your judgment goes into the prose and, when the cut is
+  wrong, into `blueprint-config.yml` (then re-run) — never into freehand sections.
