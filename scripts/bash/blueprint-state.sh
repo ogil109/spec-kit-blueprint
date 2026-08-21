@@ -59,7 +59,10 @@ fi
 if [ -z "$BLUEPRINT" ]; then
   cfg="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml"
   if [ -f "$cfg" ]; then
-    p=$(grep -E '^[[:space:]]*path:' "$cfg" | head -1 | sed -E 's/^[[:space:]]*path:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/')
+    # `|| true`: under `set -euo pipefail` a config with no `path:` key would
+    # otherwise kill the whole script via grep's exit 1 — a config that only
+    # sets other keys is legal.
+    p=$(grep -E '^[[:space:]]*path:' "$cfg" | head -1 | sed -E 's/^[[:space:]]*path:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/' || true)
     if [ -n "$p" ]; then
       BLUEPRINT="$ROOT/$p"
       # A configured path that doesn't resolve must be loud: silently falling back

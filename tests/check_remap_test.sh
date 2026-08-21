@@ -155,6 +155,15 @@ import json,sys
 assert json.load(sys.stdin)['blueprint']=='docs/blueprint.md'
 " >/dev/null 2>&1; assert "missing configured path still falls back to auto-detect" $? "$fbjson"
 
+# 12. a config file WITHOUT a path: key must not crash the oracle (set -euo
+#     pipefail turned grep's no-match exit 1 into a hard death of the script).
+printf 'distill:\n  require_confirmation: false\n' > "$R6/.specify/extensions/blueprint-index/blueprint-config.yml"
+nopjson="$(bash "$ORACLE" check --json --root "$R6" 2>/dev/null)"; nrc=$?
+{ [ "$nrc" = 0 ] && echo "$nopjson" | python3 -c "
+import json,sys
+assert json.load(sys.stdin)['blueprint']=='docs/blueprint.md'
+" >/dev/null 2>&1; }; assert "config without path: key doesn't crash (auto-detects)" $? "rc=$nrc $nopjson"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
