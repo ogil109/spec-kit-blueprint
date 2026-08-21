@@ -13,3 +13,48 @@ distill:
   # affected section and asks before overwriting (interactive). Set false to let
   # fully autonomous runs distill without a checkpoint.
   require_confirmation: true
+
+slice:
+  # Deterministic brownfield partitioner (blueprint-slice.sh): computes the
+  # code-owned section set from `git ls-files` alone — same repo state + same
+  # config => byte-identical partition. The agent authors each section's PROSE;
+  # it does not choose the sections. Editing these values (and re-running the
+  # slicer) is how a human overrides the computed cut — the override lives here,
+  # checked in, and replays identically on every future run.
+  #
+  # A directory whose tracked-file count exceeds max_files is split into its
+  # children; a child with fewer than min_files files folds into the parent's
+  # remainder section instead of becoming its own.
+  max_files: 400
+  min_files: 3
+  # Presence of one of these files marks a directory as a module root: it always
+  # becomes its own section (even below min_files), and any ancestor is split
+  # down to it (even below max_files). The files are only *detected*, never
+  # opened or parsed — the slicer stays language-agnostic.
+  boundary_files:
+    - pyproject.toml
+    - setup.py
+    - package.json
+    - Cargo.toml
+    - go.mod
+    - pom.xml
+    - build.gradle
+    - CMakeLists.txt
+    - composer.json
+    - Gemfile
+  # Top-level directories mapped as CONTEXT sections (managed, no git baseline,
+  # never backlog): documentation-like trees that belong on the map but are not
+  # architecture-bearing buildable code.
+  context_dirs:
+    - docs
+    - doc
+    - documentation
+
+coverage:
+  # Paths the unmapped-code scan never flags (and the slicer never partitions).
+  # A pattern without "/" is a glob matched against the FIRST path component
+  # only; a pattern containing "/" is a path-prefix glob. The blueprint doc
+  # itself and root-level loose files are always outside coverage.
+  exclude:
+    - ".*"      # hidden top-level dirs (.github, .specify, ...)
+    - "specs"   # first-class spec-kit state, gated by distill drift instead
