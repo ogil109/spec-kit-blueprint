@@ -84,6 +84,33 @@ function Get-CodeMarkers {
   Select-String -Path $Blueprint -Pattern '<!-- blueprint:code path=(\S+) sha=(\S+) -->' -AllMatches |
     ForEach-Object { $_.Matches } | ForEach-Object { [pscustomobject]@{ path = $_.Groups[1].Value; sha = $_.Groups[2].Value } }
 }
+# A context section may declare the paths it covers (docs trees etc.):
+#   <!-- blueprint:context path=docs -->
+# Context coverage has NO baseline and NO staleness (mirrors the bash oracle).
+function Get-ContextMarkers {
+  if (-not ($Blueprint -and (Test-Path $Blueprint))) { return @() }
+  Select-String -Path $Blueprint -Pattern '<!-- blueprint:context path=(\S+) -->' -AllMatches |
+    ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value }
+}
+# Coverage excludes: config coverage.exclude list, else defaults (hidden
+# top-level dirs; specs/, which is gated by distill drift instead). A pattern
+# without "/" matches the FIRST path component; with "/" it is a path prefix.
+function Get-CoverageExcludes {
+  $cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
+  $ex = @()
+  if (Test-Path $cfg) {
+    $inTop = $false; $inList = $false
+    foreach ($line in [System.IO.File]::ReadAllLines($cfg)) {
+      if ($line -match '^[^\s#]') { $inTop = ($line -match '^coverage:\s*$'); $inList = $false; continue }
+      if ($inTop -and $line -match '^\s+exclude:\s*$') { $inList = $true; continue }
+      if ($inTop -and $inList) {
+        if ($line -match '^\s+-\s+(.*)$') { $ex += ($Matches[1] -replace '\s+#.*$','' -replace '"','') }
+        elseif ($line -match '^\s*(#|$)') { } else { $inList = $false }
+      }
+    }
+  }
+  if ($ex.Count -gt 0) { return $ex } else { return @(".*", "specs") }
+}
 
 $inflight = @(); $drift = @(); $builtCount = 0
 if (Test-Path $specsDir) {
@@ -134,22 +161,35 @@ if ($Command -eq "check") {
       # abbreviate like git: a full 40-char pair is unreadable in a CI log line
       elseif ($cur -ne $m.sha)   { $short = { param($h) if ($h.Length -gt 8) { $h.Substring(0,8) } else { $h } }; $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($(& $short $m.sha) -> $(& $short $cur))"; run="/speckit.blueprint-index.remap $($m.path)"; kind="authored" } }
     }
-    # unmapped code (coverage): tracked code under a mapped root that no section covers
-    $mappedPaths = @(Get-CodeMarkers | ForEach-Object { $_.path })
-    if ($mappedPaths.Count -gt 0) {
-      $roots = @($mappedPaths | ForEach-Object { ($_ -split '/')[0] } | Sort-Object -Unique)
-      $uncovered = @()
-      foreach ($f in (git -C $Root ls-files -- $roots 2>$null)) {
-        if ($mappedPaths | Where-Object { $f -eq $_ -or $f.StartsWith("$_/") }) { continue }  # covered file
-        $d = ($f -replace '/[^/]+$','')
-        if ($mappedPaths | Where-Object { $_ -eq $d -or $_.StartsWith("$d/") }) { continue }  # covered-parent dir
-        $uncovered += $d
+    # unmapped code (coverage): every tracked file must be covered by a code
+    # section, a context section, or an exclude pattern. The scan spans ALL
+    # top-level directories — deriving scan roots from already-mapped paths (as
+    # before) let a directory the on-ramp never touched stay invisible forever.
+    # Root-level loose files are outside coverage by design; the blueprint doc
+    # itself is always excluded. Reported at the shallowest uncovered directory.
+    $coveredPaths = @(Get-CodeMarkers | ForEach-Object { $_.path }) + @(Get-ContextMarkers)
+    $excludes = @(Get-CoverageExcludes)
+    $bpRel = if ($Blueprint) { $Blueprint.Replace("$Root/","").Replace("$Root\","") } else { "" }
+    $uncovered = @()
+    foreach ($f in (git -C $Root ls-files 2>$null)) {
+      if ($f -notmatch '/') { continue }                                                    # root-level loose file
+      if ($f -eq $bpRel) { continue }                                                       # the map itself
+      $first = ($f -split '/')[0]
+      $skip = $false
+      foreach ($g in $excludes) {
+        if ($g -match '/') { if ($f -like $g -or $f -like "$g/*") { $skip = $true; break } }
+        else               { if ($first -like $g)                 { $skip = $true; break } }
       }
-      $uncovered = @($uncovered | Sort-Object -Unique)
-      foreach ($d in $uncovered) {
-        if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
-        $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint-index.init --from-code $d"; kind="authored" }
-      }
+      if ($skip) { continue }
+      if ($coveredPaths | Where-Object { $f -eq $_ -or $f.StartsWith("$_/") }) { continue }  # covered file
+      $d = ($f -replace '/[^/]+$','')
+      if ($coveredPaths | Where-Object { $_ -eq $d -or $_.StartsWith("$d/") }) { continue }  # covered-parent dir
+      $uncovered += $d
+    }
+    $uncovered = @($uncovered | Sort-Object -Unique)
+    foreach ($d in $uncovered) {
+      if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
+      $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint-index.init --from-code $d"; kind="authored" }
     }
   } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness/coverage checks skipped") }
 
