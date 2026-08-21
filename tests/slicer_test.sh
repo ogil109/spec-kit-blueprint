@@ -133,6 +133,26 @@ adv={a['path'] for a in d['advisories']}
 assert 'src' in adv, d['advisories']
 " >/dev/null 2>&1; assert "existing section exceeding max_files raises an oversize advisory" $? "$j8"
 
+# 9. pin_dirs: atomic despite thresholds, and ancestors split down to reach a pin
+printf 'slice:\n  max_files: 5\n  min_files: 2\n  pin_dirs:\n    - src\n' > "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
+j9="$(bash "$SLICER" slice "${A[@]}" --all --json)"
+echo "$j9" | python3 -c "
+import json,sys
+S={s['path']:s['rule'] for s in json.load(sys.stdin)['sections']}
+assert S['src']=='pinned', S
+assert not any(p.startswith('src/') for p in S), 'pin must stop descent'
+" >/dev/null 2>&1; assert "pinned dir stays one section despite max_files" $? "$j9"
+printf 'slice:\n  pin_dirs:\n    - src/io\n' > "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
+j10="$(bash "$SLICER" slice "${A[@]}" --all --json)"
+echo "$j10" | python3 -c "
+import json,sys
+S={s['path']:s['rule'] for s in json.load(sys.stdin)['sections']}
+assert S['src/io']=='pinned', S
+assert 'src' not in S or S.get('src')!='fits', 'ancestor of a pin must split down to it'
+assert S.get('src/core')=='fits'
+" >/dev/null 2>&1; assert "ancestors split down to reach a nested pin" $? "$j10"
+rm -f "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
+
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
