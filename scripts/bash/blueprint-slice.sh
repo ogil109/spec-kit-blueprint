@@ -117,6 +117,7 @@ CONTEXT_DIRS="$(cfg_list slice context_dirs)"
 [ -z "$CONTEXT_DIRS" ] && CONTEXT_DIRS="docs
 doc
 documentation"
+PIN_DIRS="$(cfg_list slice pin_dirs | sed 's|/$||')"
 EXCLUDES="$(cfg_list coverage exclude)"
 [ -z "$EXCLUDES" ] && EXCLUDES=".*
 specs"
@@ -168,25 +169,36 @@ done < <(git -C "$ROOT" ls-files 2>/dev/null | LC_ALL=C sort) > "$FEED"
 
 # ── partition (POSIX awk; input is sorted, so every emitted order is, too) ────
 # Rules, in order, per directory d with tracked-subtree count n:
+#   pinned    — d is in slice.pin_dirs: one atomic section regardless of size;
+#               ancestors split down to reach it.
 #   module    — a boundary file sits at d's root and n <= max_files: d is a
 #               section regardless of min_files (a small module stays whole).
-#   fits      — n <= max_files and no boundary file deeper inside: one section.
-#   descend   — n > max_files, or a nested boundary file forces the split:
-#               each child with a boundary, a nested boundary, or >= min_files
-#               partitions recursively; smaller children and d's direct files
-#               fold into one REMAINDER section carrying one marker per path
-#               (a section is a SET of paths — tree markers for dirs, blob
-#               markers for files — so no marker ever covers a child section).
+#   fits      — n <= max_files and no boundary file or pin deeper inside: one
+#               section.
+#   descend   — n > max_files, or a nested boundary/pin forces the split:
+#               each child with a boundary, a nested boundary/pin, a pin, or
+#               >= min_files partitions recursively; smaller children and d's
+#               direct files fold into one REMAINDER section carrying one
+#               marker per path (a section is a SET of paths — tree markers
+#               for dirs, blob markers for files — so no marker ever covers a
+#               child section).
 #   flat      — n > max_files but there is nothing to descend into (one flat
 #               directory of files): emitted whole; thresholds cannot split
 #               what has no subdirectories.
 PART="$(awk -v max="$MAX_FILES" -v min="$MIN_FILES" -v scope="$SCOPE" \
-        -v bound="$(printf '%s' "$BOUNDARY" | tr '\n' ',')" \
-        -v ctx="$(printf '%s' "$CONTEXT_DIRS" | tr '\n' ',')" '
+        -v bound="$(printf '%s' "$BOUNDARY" | tr '\n' '\037')" \
+        -v ctx="$(printf '%s' "$CONTEXT_DIRS" | tr '\n' '\037')" \
+        -v pins="$(printf '%s' "$PIN_DIRS" | tr '\n' '\037')" '
 BEGIN {
   US = sprintf("%c", 31)
-  nb = split(bound, ba, ","); for (i = 1; i <= nb; i++) if (ba[i] != "") bset[ba[i]] = 1
-  nc = split(ctx, ca, ",");   for (i = 1; i <= nc; i++) if (ca[i] != "") cset[ca[i]] = 1
+  nb = split(bound, ba, US); for (i = 1; i <= nb; i++) if (ba[i] != "") bset[ba[i]] = 1
+  nc = split(ctx, ca, US);   for (i = 1; i <= nc; i++) if (ca[i] != "") cset[ca[i]] = 1
+  np = split(pins, pa, US)
+  for (i = 1; i <= np; i++) if (pa[i] != "") {
+    pset[pa[i]] = 1
+    m = split(pa[i], pp, "/"); q = ""
+    for (j = 1; j < m; j++) { q = (q == "" ? pp[j] : q "/" pp[j]); pnested[q] = 1 }
+  }
 }
 {
   f = $0
@@ -220,14 +232,16 @@ END {
 }
 function partition(d,   n, mod, kids, nk, i, c, remm, remc, dfl, nfl) {
   n = cnt[d]; mod = (d in boundary_at)
-  if (mod && n <= max)                    { print "code" US d US "0" US "module" US n US d; return }
-  if (!mod && !(d in nested) && n <= max) { print "code" US d US "0" US "fits"   US n US d; return }
+  if (d in pset)                          { print "code" US d US "0" US "pinned" US n US d; return }
+  if (mod && n <= max && !(d in pnested)) { print "code" US d US "0" US "module" US n US d; return }
+  if (!mod && !(d in nested) && !(d in pnested) && n <= max) \
+                                          { print "code" US d US "0" US "fits"   US n US d; return }
   nk = split(childdirs[d], kids, US)
   if (nk == 0 && n > max)                 { print "code" US d US "0" US "flat"   US n US d; return }
   remm = ""; remc = 0
   for (i = 1; i <= nk; i++) {
     c = kids[i]
-    if ((c in boundary_at) || (c in nested) || cnt[c] >= min) partition(c)
+    if ((c in pset) || (c in pnested) || (c in boundary_at) || (c in nested) || cnt[c] >= min) partition(c)
     else { remm = (remm == "" ? c : remm " " c); remc += cnt[c] }
   }
   nfl = split(dfiles[d], dfl, US)

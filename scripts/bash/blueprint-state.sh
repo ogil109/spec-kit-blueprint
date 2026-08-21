@@ -266,8 +266,11 @@ if [ "$CMD" = "check" ]; then
     # invisible forever, reading as "clean" while whole trees (tests/, infra/)
     # were silently unmapped. Reported at the shallowest uncovered directory.
     # Root-level loose files (manifests, READMEs) are outside coverage by
-    # design; the blueprint doc itself is always excluded.
+    # design; the blueprint doc itself is always excluded. Only runs when a
+    # blueprint exists — with no map at all, the actionable signal is "run
+    # init", not one unmapped issue per directory.
     # SOFT — a new module may be intentional WIP.
+    if [ -f "$BLUEPRINT" ]; then
     covered=(); while IFS= read -r mk; do [ -n "$mk" ] && covered+=("$(marker_path "$mk")"); done < <(code_markers; context_markers)
     excl=(); while IFS= read -r g; do [ -n "$g" ] && excl+=("$g"); done < <(cov_excludes)
     bp_rel="${BLUEPRINT#"$ROOT/"}"
@@ -297,6 +300,7 @@ if [ "$CMD" = "check" ]; then
       done <<<"$uncovered"
       [ "$keep" = 1 ] && add soft unmapped "$d" "tracked code no section maps" "/speckit.blueprint-index.init --from-code $d" authored
     done <<<"$uncovered"
+    fi
   else
     echo "note: not a git repository — code-staleness/coverage checks skipped" >&2
   fi
