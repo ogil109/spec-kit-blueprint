@@ -142,6 +142,14 @@ specify extension add /path/to/spec-kit-blueprint --dev
 code-baseline checks), and **bash** (Unix/macOS). A PowerShell port is verified at output
 parity with the Bash oracle on pwsh 7.4 (Linux); Windows path handling is still unverified.
 
+> **macOS note:** the oracle is written in portable POSIX shell (BSD `sed`/`grep` safe —
+> guarded by `tests/portability_lint_test.sh`), but the **system `/bin/bash`** shipped
+> with the newest macOS (Apple's bash 3.2 build on macOS 26) has a parser regression that
+> breaks `case` statements inside `$(...)` command substitution, which the oracle uses.
+> For local runs on that macOS, install a modern bash (`brew install bash`) and invoke
+> the script with it (`/opt/homebrew/bin/bash …/blueprint-state.sh check`). Linux CI
+> runners ship bash 5.x and are unaffected.
+
 ## Quickstart
 
 ```bash
@@ -245,9 +253,10 @@ Contributions welcome — this is a community Spec Kit extension. The oracle/gat
 single Bash script with **no dependencies beyond bash + git**, so the tests run anywhere:
 
 ```bash
-bash tests/oracle_test.sh          # state frontier, provenance, context
-bash tests/check_remap_test.sh     # the tiered gate: hard/soft, --strict, JSON contract
-bash tests/harness_loop_test.sh    # the autonomous-harness loop
+bash tests/oracle_test.sh            # state frontier, provenance, context
+bash tests/check_remap_test.sh       # the tiered gate: hard/soft, --strict, JSON contract
+bash tests/harness_loop_test.sh      # the autonomous-harness loop
+bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms
 ```
 
 Iterate locally with `specify extension add /path/to/spec-kit-blueprint --dev`. Please open an
