@@ -10,9 +10,10 @@ The oracle/gate is a single Bash script with **no dependencies beyond bash + git
 run anywhere:
 
 ```bash
-bash tests/oracle_test.sh          # state frontier, provenance, context
-bash tests/check_remap_test.sh     # the tiered gate: hard/soft, --strict, JSON contract, coverage
-bash tests/harness_loop_test.sh    # the autonomous-harness loop
+bash tests/oracle_test.sh            # state frontier, provenance, context
+bash tests/check_remap_test.sh       # the tiered gate: hard/soft, --strict, JSON contract, coverage
+bash tests/harness_loop_test.sh      # the autonomous-harness loop
+bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms (BSD sed safety)
 ```
 
 CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
@@ -62,6 +63,10 @@ PR's own range rather than the whole history.
 - Open an issue to discuss anything larger than a fix before sending a PR.
 - Keep the oracle **deterministic and dependency-free** (bash + git); agent-authored
   behavior lives in the command markdown, not the script.
+- Keep the oracle **portable shell**: POSIX character classes (never GNU regex
+  shorthands) and no bare `sed -i` — BSD `sed` on macOS fails *silently* on both.
+  CI runs GNU userland and cannot catch these by execution, so
+  `tests/portability_lint_test.sh` enforces them statically.
 - Add or update a test for any change to `check`/`next`/`status`/`restamp` behavior.
 - **Help wanted:** the PowerShell port (`scripts/powershell/blueprint-state.ps1`) is
   execution-verified at output parity with the Bash oracle on **pwsh 7.4 / Linux**, but
