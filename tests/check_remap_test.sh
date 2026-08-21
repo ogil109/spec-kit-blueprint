@@ -177,6 +177,50 @@ import json,sys
 assert json.load(sys.stdin)['blueprint']=='docs/blueprint.md'
 " >/dev/null 2>&1; }; assert "config without path: key doesn't crash (auto-detects)" $? "rc=$nrc $nopjson"
 
+# 13. THE on-ramp blind spot (coverage scan widening): a top-level directory
+#     with ZERO mapped sections must surface as unmapped. The old scan derived
+#     its roots from already-mapped paths, so tests/ and infra/ here were
+#     invisible forever and the map read "clean" while materially incomplete.
+R7="$TMP/repo7"; mkdir -p "$R7/src/core" "$R7/tests" "$R7/infra" "$R7/.github" "$R7/specs/001-x" "$R7/.specify"
+git -C "$R7" init -q; git -C "$R7" config user.email t@t; git -C "$R7" config user.name t
+printf 'x\n' > "$R7/src/core/a.py"; printf 'x\n' > "$R7/tests/t.py"; printf 'x\n' > "$R7/infra/main.bicep"
+printf 'x\n' > "$R7/.github/ci.yml"; printf 'x\n' > "$R7/specs/001-x/spec.md"; printf 'x\n' > "$R7/README.md"
+cat > "$R7/blueprint.md" <<'EOF'
+# BP
+## Core
+<!-- blueprint:section state=code -->
+<!-- blueprint:code path=src/core sha=NONE -->
+EOF
+git -C "$R7" add -A; git -C "$R7" commit -qm init
+E=(--root "$R7" --blueprint "$R7/blueprint.md")
+bash "$ORACLE" restamp "${E[@]}" >/dev/null 2>&1
+gate "${E[@]}"
+{ echo "$OUT" | grep -q "UNMAPPED.*tests" && echo "$OUT" | grep -q "UNMAPPED.*infra"; }; \
+  assert "never-mapped top-level dirs surface (tests/, infra/)" $? "$OUT"
+n=$(echo "$OUT" | grep -c UNMAPPED); [ "$n" = 2 ]; \
+  assert "hidden dirs, specs/, root files, the map itself stay excluded" $? "count=$n $OUT"
+[ "$RC" = 0 ]; assert "widened coverage stays SOFT (advisory, exit 0)" $? "rc=$RC"
+
+# 14. a context marker covers its tree with NO baseline: docs/ mapped as context
+#     stops being unmapped, and never becomes stale/unstamped/dangling.
+mkdir -p "$R7/docs"; printf 'x\n' > "$R7/docs/index.md"
+git -C "$R7" add -A; git -C "$R7" commit -qm docs
+cat >> "$R7/blueprint.md" <<'EOF'
+## Documentation
+<!-- blueprint:section state=context -->
+<!-- blueprint:context path=docs -->
+EOF
+gate "${E[@]}"
+{ ! echo "$OUT" | grep -q "UNMAPPED.*docs"; }; assert "context marker covers its tree (docs/ not unmapped)" $? "$OUT"
+{ ! echo "$OUT" | grep -qE "(STALE|UNSTAMPED|DANGLING).*docs"; }; assert "context coverage carries no staleness" $? "$OUT"
+
+# 15. coverage excludes are configurable: exclude infra/ via config → only tests/ flagged
+mkdir -p "$R7/.specify/extensions/blueprint-index"
+printf 'coverage:\n  exclude:\n    - ".*"\n    - "specs"\n    - "infra"\n' > "$R7/.specify/extensions/blueprint-index/blueprint-config.yml"
+gate "${E[@]}"
+{ echo "$OUT" | grep -q "UNMAPPED.*tests" && ! echo "$OUT" | grep -q "UNMAPPED.*infra"; }; \
+  assert "config coverage.exclude overrides the defaults" $? "$OUT"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

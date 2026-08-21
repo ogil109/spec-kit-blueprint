@@ -116,6 +116,29 @@ current_sha() { git -C "$ROOT" rev-parse --verify --quiet "HEAD:$1" 2>/dev/null 
 code_markers(){ [ -f "$BLUEPRINT" ] && grep -oE '<!-- blueprint:code path=[^ ]+ sha=[^ ]+ -->' "$BLUEPRINT" 2>/dev/null || true; }
 marker_path() { echo "$1" | sed -E 's/.*path=([^ ]+).*/\1/'; }
 marker_sha()  { echo "$1" | sed -E 's/.*sha=([^ ]+).*/\1/'; }
+# A context section may declare the paths it covers (docs trees etc.):
+#   <!-- blueprint:context path=docs -->
+# Context coverage has NO baseline and NO staleness — it says "this exists and is
+# on the map, but it is not architecture-bearing buildable code".
+context_markers(){ [ -f "$BLUEPRINT" ] && grep -oE '<!-- blueprint:context path=[^ ]+ -->' "$BLUEPRINT" 2>/dev/null || true; }
+# Paths the coverage scan never flags. From config (coverage.exclude), else the
+# defaults: hidden top-level dirs, and specs/ (first-class spec-kit state, gated
+# by distill drift instead). A pattern without "/" matches the FIRST path
+# component; one containing "/" matches as a path prefix. Both are shell globs.
+cov_excludes() {
+  local cfg="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml" ex=""
+  if [ -f "$cfg" ]; then
+    ex=$(awk '
+      /^[^[:space:]#]/ { in_top = ($0 ~ /^coverage:[[:space:]]*$/); in_list = 0 }
+      in_top && $0 ~ /^[[:space:]]+exclude:[[:space:]]*$/ { in_list = 1; next }
+      in_top && in_list {
+        if ($0 ~ /^[[:space:]]+-[[:space:]]+/) {
+          sub(/^[[:space:]]+-[[:space:]]+/, ""); sub(/[[:space:]]+#.*$/, ""); gsub(/"/, ""); print
+        } else if ($0 ~ /^[[:space:]]*(#|$)/) { } else { in_list = 0 }
+      }' "$cfg")
+  fi
+  if [ -n "$ex" ]; then printf '%s\n' "$ex"; else printf '.*\nspecs\n'; fi
+}
 
 # ── gather state ──────────────────────────────────────────────────────────────
 INFLIGHT_SLUG=(); INFLIGHT_PHASE=()
@@ -236,26 +259,44 @@ if [ "$CMD" = "check" ]; then
       fi
     done < <(code_markers)
 
-    # unmapped code (coverage): tracked code under a mapped root that NO section covers.
-    # Deterministic + git-based (git ls-files → respects .gitignore). Reported at the
-    # shallowest uncovered directory; a dir that only *contains* mapped areas (a covered
-    # parent) is not flagged. SOFT — a new module may be intentional WIP.
-    mapped_paths=(); while IFS= read -r mk; do [ -n "$mk" ] && mapped_paths+=("$(marker_path "$mk")"); done < <(code_markers)
-    if [ "${#mapped_paths[@]}" -gt 0 ]; then
-      roots=$(printf '%s\n' "${mapped_paths[@]}" | sed -E 's#/.*##' | sort -u)
-      uncovered=$(git -C "$ROOT" ls-files -- $roots 2>/dev/null | while IFS= read -r f; do
-        skip=0
-        for p in "${mapped_paths[@]}"; do case "$f" in "$p"|"$p"/*) skip=1; break;; esac; done   # covered file
-        [ "$skip" = 1 ] && continue
-        d=$(dirname "$f")
-        for p in "${mapped_paths[@]}"; do case "$p" in "$d"|"$d"/*) skip=1; break;; esac; done     # covered-parent dir
-        [ "$skip" = 1 ] || echo "$d"
-      done | sort -u)
-      for d in $uncovered; do
-        keep=1; for o in $uncovered; do [ "$o" != "$d" ] && case "$d" in "$o"/*) keep=0; break;; esac; done
-        [ "$keep" = 1 ] && add soft unmapped "$d" "tracked code no section maps" "/speckit.blueprint-index.init --from-code $d" authored
+    # unmapped code (coverage): every tracked file must be covered by a code
+    # section, a context section, or an exclude pattern. The scan spans ALL
+    # top-level directories — deriving the scan roots from already-mapped paths
+    # (as before) meant a directory the on-ramp never touched could stay
+    # invisible forever, reading as "clean" while whole trees (tests/, infra/)
+    # were silently unmapped. Reported at the shallowest uncovered directory.
+    # Root-level loose files (manifests, READMEs) are outside coverage by
+    # design; the blueprint doc itself is always excluded.
+    # SOFT — a new module may be intentional WIP.
+    covered=(); while IFS= read -r mk; do [ -n "$mk" ] && covered+=("$(marker_path "$mk")"); done < <(code_markers; context_markers)
+    excl=(); while IFS= read -r g; do [ -n "$g" ] && excl+=("$g"); done < <(cov_excludes)
+    bp_rel="${BLUEPRINT#"$ROOT/"}"
+    uncovered=$(git -C "$ROOT" ls-files 2>/dev/null | while IFS= read -r f; do
+      case "$f" in */*) ;; *) continue ;; esac                 # root-level loose file
+      [ "$f" = "$bp_rel" ] && continue                          # the map itself
+      skip=0; first="${f%%/*}"
+      for g in "${excl[@]:-}"; do
+        [ -n "$g" ] || continue
+        case "$g" in
+          */*) case "$f" in $g|$g/*) skip=1; break ;; esac ;;
+          *)   case "$first" in $g) skip=1; break ;; esac ;;
+        esac
       done
-    fi
+      [ "$skip" = 1 ] && continue
+      for p in "${covered[@]:-}"; do case "$f" in "$p"|"$p"/*) skip=1; break;; esac; done   # covered file
+      [ "$skip" = 1 ] && continue
+      d=$(dirname "$f")
+      for p in "${covered[@]:-}"; do case "$p" in "$d"|"$d"/*) skip=1; break;; esac; done     # covered-parent dir
+      [ "$skip" = 1 ] || echo "$d"
+    done | sort -u)
+    while IFS= read -r d; do
+      [ -n "$d" ] || continue
+      keep=1
+      while IFS= read -r o; do
+        [ -n "$o" ] && [ "$o" != "$d" ] && case "$d" in "$o"/*) keep=0 ;; esac
+      done <<<"$uncovered"
+      [ "$keep" = 1 ] && add soft unmapped "$d" "tracked code no section maps" "/speckit.blueprint-index.init --from-code $d" authored
+    done <<<"$uncovered"
   else
     echo "note: not a git repository — code-staleness/coverage checks skipped" >&2
   fi
