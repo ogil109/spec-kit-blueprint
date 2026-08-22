@@ -48,7 +48,7 @@ provides:
       description: "PowerShell port of the coherence gate, parity-verified against the Bash oracle"
     - name: blueprint-slice
       file: scripts/bash/blueprint-slice.sh
-      description: "Deterministic brownfield partitioner: computes the section set for init --from-code from git ls-files + checked-in config, and verifies a written map structurally conforms to it (verify)"
+      description: "Deterministic brownfield partitioner: computes the section set from git ls-files + checked-in config, writes the map skeleton itself (scaffold), and machine-checks that a written map structurally conforms (verify)"
 
 tags:
   - "blueprint"

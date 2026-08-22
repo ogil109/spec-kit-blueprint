@@ -202,6 +202,39 @@ EOF
 bash "$SLICER" verify "${A[@]}" --blueprint "$BP" >/dev/null 2>&1
 assert "distilled-owned markers are ignored by verify (exit 0)" $? ""
 
+# 13. scaffold: the map skeleton is machine-written — byte-identical runs, the
+#     redirect-creates-empty-file edge included, and verify passes with the
+#     TODO(prose) placeholders untouched (prose is provably outside the oracles).
+R2="$TMP/scaf"; mkdir -p "$R2/.specify/memory" "$R2/src/a" "$R2/src/b" "$R2/docs"
+git -C "$R2" init -q; git -C "$R2" config user.email t@t; git -C "$R2" config user.name t
+for i in 1 2 3; do printf 'x\n' > "$R2/src/a/f$i.py"; printf 'x\n' > "$R2/src/b/g$i.py"; done
+printf 'x\n' > "$R2/docs/index.md"
+git -C "$R2" add -A; git -C "$R2" commit -qm init
+B2="$R2/.specify/memory/blueprint.md"
+s1="$(bash "$SLICER" scaffold --root "$R2")"        # no blueprint exists yet
+s2="$(bash "$SLICER" scaffold --root "$R2")"
+bash "$SLICER" scaffold --root "$R2" > "$B2"        # the > pre-creates an empty target
+{ [ "$s1" = "$s2" ] && [ "$(cat "$B2")" = "$s1" ]; }
+assert "scaffold is byte-identical (empty-redirect edge included)" $? ""
+grep -q '^# .* Blueprint$' "$B2" && grep -q '## Table of Contents' "$B2" && grep -q 'TODO(prose)' "$B2"
+assert "scaffold emits the full template skeleton (title, TOC, placeholders)" $? "$(head -3 "$B2")"
+bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1 \
+  && bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+assert "scaffolded map passes verify + gate with placeholders untouched" $? ""
+
+# 14. scaffold is additive against an existing map: only the missing blocks, no header
+mkdir -p "$R2/newmod"; for i in 1 2 3; do printf 'x\n' > "$R2/newmod/n$i.py"; done
+git -C "$R2" add -A; git -C "$R2" commit -qm newmod
+add="$(bash "$SLICER" scaffold --root "$R2" --blueprint "$B2")"
+{ echo "$add" | grep -q '^## newmod$' && ! echo "$add" | grep -q 'Table of Contents' \
+  && [ "$(echo "$add" | grep -c '^## ')" = 1 ]; }
+assert "scaffold against an existing map emits only the missing section" $? "$add"
+printf '%s\n' "$add" >> "$B2"
+bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" --path newmod >/dev/null 2>&1
+bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+assert "appended scaffold block restores full conformance" $? ""
+
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -33,20 +33,8 @@ git -C "$R" add -A; git -C "$R" commit -qm init
 printf 'slice:\n  max_files: 5\n  min_files: 3\n' > "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
 BP="$R/.specify/memory/blueprint.md"
 
-# ── phase 0: on-ramp ──────────────────────────────────────────────────────────
-{
-  echo "# Blueprint"
-  bash "$SLICER" slice --root "$R" --json | python3 -c "
-import json,sys
-for s in json.load(sys.stdin)['sections']:
-    print(f\"## {s['path']}\" + (' (remainder)' if s['remainder'] else ''))
-    state = 'code' if s['kind']=='code' else 'context'
-    print(f'<!-- blueprint:section state={state} -->')
-    for m in s['markers']:
-        print(f'<!-- blueprint:code path={m} sha=NONE -->' if s['kind']=='code'
-              else f'<!-- blueprint:context path={m} -->')
-"
-} > "$BP"
+# ── phase 0: on-ramp (the real shipped path: scaffold writes the structure) ───
+bash "$SLICER" scaffold --root "$R" --blueprint "$BP" > "$BP"
 bash "$ORACLE" restamp --root "$R" --blueprint "$BP" >/dev/null 2>&1
 bash "$SLICER" verify --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "on-ramp: verify conforms" $? ""
 bash "$ORACLE" check --json --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "on-ramp: gate green" $? ""
@@ -109,13 +97,7 @@ import json,sys
 u=[i for i in json.load(sys.stdin)['issues'] if i['type']=='unmapped']
 assert len(u)==1 and u[0]['target']=='newmod' and 'from-code newmod' in u[0]['remedy']['run'], u
 " >/dev/null 2>&1; assert "new module -> UNMAPPED with scoped init remedy" $? ""
-bash "$SLICER" slice --root "$R" --blueprint "$BP" --scope newmod --all --json | python3 -c "
-import json,sys
-s=json.load(sys.stdin)['sections'][0]
-print(f\"## {s['path']}\")
-print('<!-- blueprint:section state=code -->')
-for m in s['markers']: print(f'<!-- blueprint:code path={m} sha=NONE -->')
-" >> "$BP"
+bash "$SLICER" scaffold --root "$R" --blueprint "$BP" --scope newmod >> "$BP"
 bash "$ORACLE" restamp --root "$R" --blueprint "$BP" --path newmod >/dev/null 2>&1
 bash "$ORACLE" check --json --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "re-onboarded module: gate green" $? ""
 bash "$SLICER" verify --root "$R" --blueprint "$BP" >/dev/null 2>&1

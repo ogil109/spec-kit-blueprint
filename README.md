@@ -142,11 +142,13 @@ brownfield on-ramp separates two jobs the way architecture-recovery tooling alwa
    manifests (`pyproject.toml`, `package.json`, `go.mod`, …) are the only evidence — so
    it stays language-agnostic. Every tracked file lands in exactly one bucket:
    a **section** (code or context), an **excluded** pattern match, or a reported
-   root-level file. Nothing is silently absent.
-2. The agent then authors each section's **prose** (role, mechanics, entry points) —
-   judgment goes into describing the code and, when the cut is wrong, into
-   `blueprint-config.yml` (`slice.*`, `coverage.exclude`) followed by a re-run: the
-   override is checked in and replays identically forever.
+   root-level file. Nothing is silently absent. **`scaffold` then writes the map
+   itself** — title, TOC, every section with markers, banners, and `TODO(prose)`
+   placeholders — so the agent never writes structure at all.
+2. The agent's only edit is replacing the **`TODO(prose)`** placeholders (role,
+   mechanics, entry points) — judgment goes into describing the code and, when the cut
+   is wrong, into `blueprint-config.yml` (`slice.*`, `coverage.exclude`) followed by a
+   re-scaffold: the override is checked in and replays identically forever.
 
 Re-runs against an existing map are **additive**: already-covered paths are subtracted,
 new code shows up as new proposed sections, and an existing section that outgrew
