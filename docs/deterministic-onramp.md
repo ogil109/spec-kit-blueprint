@@ -104,24 +104,35 @@ rules.
   The override is checked in and replays identically on every future run —
   non-determinism is permitted once, then frozen as state.
 
-`init --from-code` (the command) consumes the partition verbatim: the agent may
-not add, drop, merge, split, or resize sections; its judgment is the prose and,
-when the cut is wrong, the config. That instruction is **not an honor system** —
-the guardrail chain has three layers, two of them hard:
+`init --from-code` (the command) no longer asks the agent to transcribe the
+structure at all: **`blueprint-slice.sh scaffold` writes the map itself** —
+title, how-this-works header, status-annotated TOC, and every section with its
+markers, banner, and a `TODO(prose)` placeholder — byte-identically for the
+same repo state + config (against an existing map it emits only the missing
+additive blocks; `--scope` gives the remedy flow for `unmapped`). The agent's
+ONLY edit is replacing the placeholders. The guardrail chain, weakest first:
 
-1. *Soft*: the command text constrains the agent (structure verbatim, prose
-   only).
-2. *Hard*: `blueprint-slice.sh verify` recomputes the partition and diffs it
-   against the (section, kind, marker) structure actually written in the doc.
-   A merged, dropped, renamed, regrouped, or freehand-invented section is a
-   deterministic pair diff and exit 1. Markers owned by `distilled`/`detailed`
-   sections (a spec's implementation footprint) are outside the slicer's
-   jurisdiction and are subtracted before the diff.
-3. *Hard*: the `check` gate's widened coverage scan catches dropped territory
+1. *Soft*: the command text constrains the agent (prose placeholders only).
+2. *Hard*: the structure never passes through the model — scaffold writes it.
+3. *Hard*: `blueprint-slice.sh verify` recomputes the partition and diffs it
+   against the (section, kind, marker) structure actually in the doc, so even
+   a prose edit that strayed into structure is a deterministic pair diff and
+   exit 1. Markers owned by `distilled`/`detailed` sections (a spec's
+   implementation footprint) are outside the slicer's jurisdiction and are
+   subtracted before the diff.
+4. *Hard*: the `check` gate's widened coverage scan catches dropped territory
    and everything that drifts later.
 
 So the agent's remaining degrees of freedom are exactly two: the prose inside
-each computed section, and checked-in config changes followed by a re-run. The `check` gate closes the loop: the
+each scaffolded section, and checked-in config changes followed by a
+re-scaffold.
+
+**Demonstrated end to end on pandas**: two fresh, independent clones, two
+complete on-ramps (scaffold → restamp → prose filled by two deliberately
+different writers). The raw scaffolds were **byte-identical including the
+stamped SHAs**; after independent prose passes, the structural skeletons
+(headings + all markers) were identical, the full-text diff contained *only*
+prose lines, and `verify`, `check`, and `next` were green on both. The `check` gate closes the loop: the
 coverage scan now spans **all** top-level directories (kills defect #2, plus
 the old zero-marker guard and the word-split space edge), with
 `blueprint:context path=` markers covering docs-like trees baseline-free.
@@ -216,8 +227,8 @@ emit, pins included), so no emitted marker can ever overlap covered ground.
    sorted per-file blob SHAs (still git-only, still shallow-safe) — a
    marker-format v2 with a `restamp`/`remap` migration. Cost is real; deferred.
 3. **PowerShell port of the slicer.** The gate-side changes (widened coverage,
-   context markers) are ported and at parity; `blueprint-slice.ps1` is not yet
-   written. Follows on acceptance of the design.
+   context markers) are ported and at parity; `blueprint-slice.ps1` (slice,
+   scaffold, verify) is not yet written. Follows on acceptance of the design.
 4. **Threshold defaults.** `max_files=400 / min_files=3` are defensible, not
    validated beyond pandas + fixtures. The pandas numbers suggest the default
    should perhaps be lower; more brownfield samples would settle it.
