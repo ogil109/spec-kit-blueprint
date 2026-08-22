@@ -16,6 +16,7 @@ bash tests/harness_loop_test.sh      # the autonomous-harness loop
 bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms (BSD sed safety)
 bash tests/slicer_test.sh            # the deterministic partitioner: rules, determinism, blind-spot closure
 bash tests/e2e_lifecycle_test.sh     # downstream consumption: on-ramp -> next -> distill -> self-heal -> re-onboard
+bash tests/ps_parity_test.sh         # byte-parity: bash vs PowerShell ports (skips without pwsh; CI runs it)
 ```
 
 CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
@@ -74,8 +75,11 @@ PR's own range rather than the whole history.
   execution-verified at output parity with the Bash oracle on **pwsh 7.4 / Linux**, but
   **not on Windows** — path separators and git-for-Windows are the untested surface. A
   Windows maintainer to confirm it there is very welcome.
-- Keep the two oracles at parity. They are diffed by running both over the same fixture and
-  comparing `check --json`; a divergence has already caught a real bug in the Bash side.
+- Keep the ports at parity — and parity means **byte parity**: `tests/ps_parity_test.sh`
+  diffs `slice --json`, `scaffold`, `verify`, and `check --json` between bash and
+  PowerShell over the same fixtures, exit codes included. Divergences have caught real
+  bugs on both sides (most recently PS 7.5 sorting native-command output culture-aware
+  where bash sorts bytewise). CI runs the parity suite on every push.
 
 ## License
 

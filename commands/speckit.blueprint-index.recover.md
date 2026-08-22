@@ -54,7 +54,7 @@ relation issue).
 
 1. **Inputs.** Run
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh slice --all --json`
-   for the authoritative section set, and read the blueprint. Never add, drop,
+   (or the PowerShell port) for the authoritative section set, and read the blueprint. Never add, drop,
    or resize sections — `verify` will catch you if you do.
 
 2. **Derive candidates mechanically before judging.** For each code-owned

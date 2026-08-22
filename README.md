@@ -209,8 +209,9 @@ specify extension add /path/to/spec-kit-blueprint --dev
 ```
 
 **Requirements:** a Spec Kit project (`.specify/`), **Spec Kit ≥ 0.10**, **git** (for the
-code-baseline checks), and **bash** (Unix/macOS). A PowerShell port is verified at output
-parity with the Bash oracle on pwsh 7.4 (Linux); Windows path handling is still unverified.
+code-baseline checks), and **bash** (Unix/macOS) *or* **PowerShell**: both scripts ship
+both ports (`blueprint-state`, `blueprint-slice`), byte-parity-enforced in CI
+(`tests/ps_parity_test.sh`); Windows-native path handling is still community-unverified.
 
 > **macOS note:** the oracle is written in portable POSIX shell (BSD `sed`/`grep` safe —
 > guarded by `tests/portability_lint_test.sh`), but the **system `/bin/bash`** shipped
@@ -220,23 +221,45 @@ parity with the Bash oracle on pwsh 7.4 (Linux); Windows path handling is still 
 > the script with it (`/opt/homebrew/bin/bash …/blueprint-state.sh check`). Linux CI
 > runners ship bash 5.x and are unaffected.
 
-## Quickstart
+## Quickstart — the brownfield on-ramp, from a fresh install
 
 ```bash
-# Brownfield — reverse-map an existing repo into a code-owned map
-/speckit.blueprint-index.init --from-code
-/speckit.blueprint-index.status
+# 1. Install into any Spec Kit project (creates .specify/extensions/blueprint-index/,
+#    registers the five /speckit.blueprint-index.* commands, scaffolds the config)
+specify extension add blueprint-index \
+  --from https://github.com/ogil109/spec-kit-blueprint/releases/latest/download/blueprint.zip
 
-# Greenfield — seed the map from a design doc
+# 2. One command runs the whole on-ramp — tell your agent:
+/speckit.blueprint-index.init --from-code
+#    Under the hood, in order (all shipped, nothing to configure first):
+#      scaffold  → the map is MACHINE-WRITTEN: sections, markers, TOC, banners
+#      prose     → the agent's only edit: fill the TODO(prose) placeholders
+#                  per templates/section-anatomy.md
+#      restamp   → git baselines recorded on every section
+#      verify+check → structure conformance + coverage machine-checked
+#      recover   → the architecture agent derives subsystem relations
+#                  (edges, layering, cycles, cross-cutting concerns)
+
+# 3. Add the gate to CI — done. The map now defends itself.
+bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh check
+
+# Have real design docs too? Richest brownfield seeding — code decides structure,
+# docs enrich prose and contribute the unbuilt backlog:
+/speckit.blueprint-index.init --from-code docs/architecture.md
+
+# Greenfield instead — seed the map from a design doc:
 /speckit.blueprint-index.init docs/master-spec.md
 
-# Build with your normal spec-kit flow; when a slice ships, collapse it into the map:
-/speckit.blueprint-index.distill 001-some-slice
-
-# Keep it honest in CI (blocks only on hard drift; --strict to block on advisories too)
-blueprint-state.sh check
-/speckit.blueprint-index.remap src/payments   # after a change flagged STALE
+# Life after the on-ramp: build with your normal spec-kit flow
+/speckit.blueprint-index.distill 001-some-slice   # spec shipped -> collapse it into the map
+/speckit.blueprint-index.remap src/payments       # after a change flagged STALE
+/speckit.blueprint-index.recover                  # repair flagged relations
 ```
+
+Every step is re-runnable and idempotent; disagreeing with the computed cut is a
+`blueprint-config.yml` edit (`slice.max_files`, `slice.pin_dirs`, …) followed by a
+re-scaffold — checked in, replayed identically forever. Windows: every script has a
+PowerShell port at byte parity (`scripts/powershell/`).
 
 ## The blueprint document
 
@@ -308,10 +331,11 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
   fix, `--strict`, and the JSON contract), against a real git repo. Dogfooded on a real
   2,100-line brownfield project.
 - Harness loop: **tested** — `tests/harness_loop_test.sh`.
-- PowerShell port (`scripts/powershell/blueprint-state.ps1`): **executed and diffed against
-  the Bash oracle on pwsh 7.4 (Linux)** — identical JSON, identical exit codes (default and
-  `--strict`), identical recorded baselines, across every issue state. **Windows itself is
-  still unverified** (path separators, git-for-Windows), so that's the open gap.
+- PowerShell ports (`scripts/powershell/blueprint-state.ps1`, `blueprint-slice.ps1`):
+  **byte-parity with the bash oracles enforced in CI** — `slice --json`, `scaffold`,
+  `verify`, and `check --json` diffed over shared fixtures, exit codes included
+  (pwsh 7.5, Linux). **Windows itself is still unverified** (path separators,
+  git-for-Windows), so that's the open gap.
 
 This is an early, honestly-scoped extension: the deterministic gate is tested and
 dogfooded; whether its low-friction balance is right for *your* team is exactly what
@@ -335,6 +359,7 @@ bash tests/harness_loop_test.sh      # the autonomous-harness loop
 bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms
 bash tests/slicer_test.sh            # the deterministic partitioner
 bash tests/e2e_lifecycle_test.sh     # the full downstream lifecycle on a generated map
+bash tests/ps_parity_test.sh         # byte-parity: bash vs PowerShell ports
 ```
 
 Iterate locally with `specify extension add /path/to/spec-kit-blueprint --dev`. Please open an

@@ -20,6 +20,7 @@ jobs:
           bash tests/portability_lint_test.sh
           bash tests/slicer_test.sh
           bash tests/e2e_lifecycle_test.sh
+          bash tests/ps_parity_test.sh
 
   commits:
     name: commit conventions
