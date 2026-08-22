@@ -34,7 +34,10 @@ keeps the map *current*, it doesn't read the code for you.
 ## How to integrate
 
 1. **Install** it into a Spec Kit project (below).
-2. **`init` once** — from existing code (`--from-code`) or a design doc — to create the map.
+2. **`init` once** — from existing code (`--from-code`), from a design doc, or **both**
+   (`--from-code docs/architecture.md`, the richest brownfield seeding: code decides the
+   settled structure, docs enrich the prose and contribute the unbuilt backlog) — to
+   create the map.
 3. **Add `check` to CI** — this is the integration point; it fails the build only when the
    map factually contradicts the specs/code (see the gate below).
 4. **Keep building normally.** The map maintains itself as the gate nudges you

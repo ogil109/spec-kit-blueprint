@@ -31,6 +31,11 @@ read as one document type and two recovery runs converge on the same content.
 - **Every bullet cites at least one anchor that exists**: a file or entry point
   under the section's own markers (code-owned), or a spec section reference
   (spec-owned). No anchor → no bullet.
+- **Design docs may be *secondary* anchors** (hybrid on-ramp): a bullet may
+  additionally cite the architecture doc that names or motivates the facet, but
+  a code-owned bullet's primary anchor is always a real path — and where docs
+  and code disagree, **code wins**; note the disagreement instead of repeating
+  the doc's claim.
 - **Cross-references name sections, not files**: a dependency on another part
   of the system is written as the *section* it lands on (`hands parsed frames
   to **pandas/core**`), keeping the digest at map altitude.

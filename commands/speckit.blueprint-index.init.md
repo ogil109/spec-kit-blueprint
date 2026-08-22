@@ -32,6 +32,11 @@ $ARGUMENTS
   to a single path, it maps **just that area** (a *partial* init) without touching the
   rest — this is the remedy the `check` gate points at for an `unmapped` (new,
   uncovered) code area.
+- **`--from-code` + doc path(s)** (e.g. `--from-code docs/architecture.md`) —
+  *hybrid brownfield*: the code decides the settled structure exactly as in
+  `--from-code`; the named docs are consumed as **evidence**, not as the blueprint —
+  see *Hybrid on-ramp* below. This is the richest seeding for a brownfield repo
+  that has real design documentation.
 - **Empty** — scaffold an empty blueprint from the template, or normalize the
   already-configured/auto-detected blueprint.
 
@@ -157,6 +162,42 @@ guaranteed by never letting you write structure at all:
    Also confirm no `TODO(prose)` placeholder remains (`grep -c 'TODO(prose)'`).
    On failure, fix the structure (or the config, then re-derive) — never
    silence the oracles.
+
+## Hybrid on-ramp (`--from-code` + docs): code decides structure, docs contribute
+
+A brownfield repo with real design docs should consume **both** — this is the
+Reflexion-Models division of labor: the source model (code) is authoritative for
+what exists; the high-level model (docs) contributes names, intent, and the
+backlog. Run the brownfield on-ramp above first (scaffold → prose → verify +
+check), then reconcile the docs into it with exactly three moves — each lands in
+a lane that keeps the on-ramp reproducible:
+
+1. **Grouping and naming disagreements → config, never freehand.** Where the
+   doc's decomposition disagrees with the computed cut (it treats a directory
+   pair as one subsystem, or a tree as documentation), express the doc's view in
+   `blueprint-config.yml` (`slice.pin_dirs`, `slice.context_dirs`, thresholds)
+   and re-scaffold. The doc's influence on structure is thereby checked in and
+   replays identically. A conceptual subsystem that **cross-cuts directories**
+   cannot be a code section (markers are tree/blob paths); capture it as a
+   `context` section citing the doc, or as a `detailed` section if it implies
+   future work — never by bending markers.
+2. **Doc knowledge about existing code → prose enrichment.** Digests may cite
+   the docs as *secondary* anchors (see the section-anatomy evidence rules): the
+   primary anchor of a code-owned bullet is always a real path under the
+   section's markers, and **where docs and code disagree, code wins** — note the
+   disagreement in the prose rather than repeating the doc's claim; it is
+   frequently a real finding.
+3. **Designed-but-unbuilt content → `detailed` sections (the backlog).** Design
+   the docs describe but the code does not contain becomes holding-pen sections
+   (`state=detailed`), preserving the doc's detail per the non-destruction
+   guardrail. This is the payoff of hybrid seeding: the map comes out with a
+   real backlog, so `next` moves from idle to `specify` and the waterfall has
+   work to pull. Carry no marker on these sections — they are outside the
+   slicer's jurisdiction (verify ignores them) until a spec ships and `distill`
+   settles them.
+
+Close the loop as usual: `verify` (unaffected by detailed additions) + `check`
++ no `TODO(prose)` leftovers.
 
 ## Report Back
 
