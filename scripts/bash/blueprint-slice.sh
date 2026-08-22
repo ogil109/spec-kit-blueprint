@@ -170,6 +170,13 @@ fi
 excl=(); while IFS= read -r g; do [ -n "$g" ] && excl+=("$g"); done <<<"$EXCLUDES"
 BP_REL=""; [ -n "$BLUEPRINT" ] && BP_REL="${BLUEPRINT#"$ROOT/"}"
 
+# Subtracted (covered) paths are passed to the partitioner as HOLES: their
+# ancestors are forced to descend, so an emitted tree marker can never span
+# covered territory. Without this, removing a covered child can shrink its
+# parent under max_files and the parent is emitted WHOLE — a marker overlapping
+# paths another section (or a spec) already owns.
+HOLES="$(printf '%s\n' "${covered[@]:-}" | grep -v '^$' | tr '\n' '\037' || true)"
+
 # ── the file stream: filter in bash (globs), partition in awk (deterministic) ─
 ROOT_FILES=()      # root-level loose files: reported, never partitioned
 EXCLUDED=()        # "path<US>pattern" — what the excludes consciously removed
@@ -224,7 +231,8 @@ done < <(git -C "$ROOT" ls-files 2>/dev/null | LC_ALL=C sort) > "$FEED"
 PART="$(awk -v max="$MAX_FILES" -v min="$MIN_FILES" -v scope="$SCOPE" \
         -v bound="$(printf '%s' "$BOUNDARY" | tr '\n' '\037')" \
         -v ctx="$(printf '%s' "$CONTEXT_DIRS" | tr '\n' '\037')" \
-        -v pins="$(printf '%s' "$PIN_DIRS" | tr '\n' '\037')" '
+        -v pins="$(printf '%s' "$PIN_DIRS" | tr '\n' '\037')" \
+        -v holes="$HOLES" '
 BEGIN {
   US = sprintf("%c", 31)
   nb = split(bound, ba, US); for (i = 1; i <= nb; i++) if (ba[i] != "") bset[ba[i]] = 1
@@ -234,6 +242,14 @@ BEGIN {
     pset[pa[i]] = 1
     m = split(pa[i], pp, "/"); q = ""
     for (j = 1; j < m; j++) { q = (q == "" ? pp[j] : q "/" pp[j]); pnested[q] = 1 }
+  }
+  # holes: proper ancestors of every subtracted (covered) path must descend so
+  # no emitted tree marker spans covered territory. A hole itself holds no
+  # remaining files, so partition() never visits it.
+  nh = split(holes, ha, US)
+  for (i = 1; i <= nh; i++) if (ha[i] != "") {
+    m = split(ha[i], hp, "/"); q = ""
+    for (j = 1; j < m; j++) { q = (q == "" ? hp[j] : q "/" hp[j]); hnested[q] = 1 }
   }
 }
 {
@@ -268,16 +284,20 @@ END {
 }
 function partition(d,   n, mod, kids, nk, i, c, remm, remc, dfl, nfl) {
   n = cnt[d]; mod = (d in boundary_at)
-  if (d in pset)                          { print "code" US d US "0" US "pinned" US n US d; return }
-  if (mod && n <= max && !(d in pnested)) { print "code" US d US "0" US "module" US n US d; return }
-  if (!mod && !(d in nested) && !(d in pnested) && n <= max) \
+  # a hole beneath d (hnested) vetoes every whole-tree emit — including a pin:
+  # correctness (no marker spanning covered/spec-owned paths) beats pin intent.
+  if ((d in pset) && !(d in hnested))     { print "code" US d US "0" US "pinned" US n US d; return }
+  if (mod && n <= max && !(d in pnested) && !(d in hnested)) \
+                                          { print "code" US d US "0" US "module" US n US d; return }
+  if (!mod && !(d in nested) && !(d in pnested) && !(d in hnested) && n <= max) \
                                           { print "code" US d US "0" US "fits"   US n US d; return }
   nk = split(childdirs[d], kids, US)
-  if (nk == 0 && n > max)                 { print "code" US d US "0" US "flat"   US n US d; return }
+  if (nk == 0 && n > max && !(d in hnested)) \
+                                          { print "code" US d US "0" US "flat"   US n US d; return }
   remm = ""; remc = 0
   for (i = 1; i <= nk; i++) {
     c = kids[i]
-    if ((c in pset) || (c in pnested) || (c in boundary_at) || (c in nested) || cnt[c] >= min) partition(c)
+    if ((c in pset) || (c in pnested) || (c in boundary_at) || (c in nested) || (c in hnested) || cnt[c] >= min) partition(c)
     else { remm = (remm == "" ? c : remm " " c); remc += cnt[c] }
   }
   nfl = split(dfiles[d], dfl, US)
