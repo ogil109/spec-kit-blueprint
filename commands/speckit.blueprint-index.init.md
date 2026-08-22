@@ -143,10 +143,16 @@ only possible if the slicing decision is not yours. The division of labor:
    identically on every future run** — a freehand deviation would be lost
    non-determinism the next run can't reproduce.
 
-6. **Close the loop.** Run restamp (step 7 above), then
-   `blueprint-state.sh check` — the scoped area must report **no `unmapped` issues**.
-   If it does, a section was written without its markers: fix the markers, don't
-   silence the gate.
+6. **Close the loop — conformance is machine-checked.** Run restamp (step 7
+   above), then two oracles must both pass:
+   - `blueprint-slice.sh verify` — recomputes the partition and diffs it against
+     the (section, kind, marker) structure you actually wrote. A merged,
+     dropped, renamed, regrouped, or invented section is a deterministic pair
+     diff and exit 1. Rule 2 is not an honor system.
+   - `blueprint-state.sh check` — the scoped area must report **no `unmapped`
+     issues**.
+   On failure, fix the structure (or the config, then re-derive) — never
+   silence the oracles.
 
 ## Report Back
 

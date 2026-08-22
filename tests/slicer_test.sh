@@ -104,6 +104,34 @@ d=json.load(sys.stdin)
 assert d['in_sync'] is True, d['issues']
 " >/dev/null 2>&1; assert "partition-generated map passes check clean (full coverage)" $? "$cj"
 
+# 5b. verify: a map generated from the partition is structure-conformant
+bash "$SLICER" verify "${A[@]}" --blueprint "$BP" >/dev/null 2>&1
+assert "verify passes on a partition-generated map (exit 0)" $? ""
+
+# 5c. verify catches an agent 'merging' sections: move a marker under another
+#     heading -> the pair shows as missing from its section AND unexpected in
+#     the other, exit 1. Structure conformance is machine-checked, not prompt
+#     discipline.
+cp "$BP" "$BP.orig"
+python3 - "$BP" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+t = open(p).read()
+m = re.search(r'## tests\n<!-- blueprint:section state=code -->\n(<!-- blueprint:code path=tests sha=[^ ]+ -->)\n', t)
+t = t.replace(m.group(0), '')
+t = t.replace('<!-- blueprint:code path=infra', m.group(1) + '\n<!-- blueprint:code path=infra')
+open(p, 'w').write(t)
+PYEOF
+vj="$(bash "$SLICER" verify "${A[@]}" --blueprint "$BP" --json 2>/dev/null)"; vrc=$?
+{ [ "$vrc" = 1 ] && echo "$vj" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+assert d['structure_ok'] is False
+assert {'section':'tests','kind':'code','marker':'tests'} in d['missing'], d['missing']
+assert {'section':'infra','kind':'code','marker':'tests'} in d['unexpected'], d['unexpected']
+" >/dev/null 2>&1; }; assert "verify flags a merged section as missing+unexpected (exit 1)" $? "rc=$vrc $vj"
+mv "$BP.orig" "$BP"
+
 # 6. the blind spot stays closed: a NEW top-level dir surfaces immediately
 mkdir -p "$R/newtop"; printf 'x\n' > "$R/newtop/n.py"
 git -C "$R" add -A; git -C "$R" commit -qm newtop
@@ -152,6 +180,27 @@ assert 'src' not in S or S.get('src')!='fits', 'ancestor of a pin must split dow
 assert S.get('src/core')=='fits'
 " >/dev/null 2>&1; assert "ancestors split down to reach a nested pin" $? "$j10"
 rm -f "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
+
+# 11. verify also surfaces structure DRIFT: newtop (added in test 6) is computed
+#     but absent from the map -> exit 1 with a missing pair.
+vj2="$(bash "$SLICER" verify "${A[@]}" --blueprint "$BP" --json 2>/dev/null)"; vrc2=$?
+{ [ "$vrc2" = 1 ] && echo "$vj2" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+assert {'section':'newtop','kind':'code','marker':'newtop'} in d['missing'], d
+assert not d['unexpected'], d['unexpected']
+" >/dev/null 2>&1; }; assert "verify surfaces structure drift (new dir missing from map)" $? "rc=$vrc2 $vj2"
+
+# 12. spec-owned markers are outside the slicer's jurisdiction: a distilled
+#     section owning newtop makes verify pass again (its paths are subtracted
+#     from the recompute and its markers ignored in the diff).
+cat >> "$BP" <<'EOF'
+## Newtop Feature
+<!-- blueprint:section state=distilled owner=specs/001-newtop -->
+<!-- blueprint:code path=newtop sha=NONE -->
+EOF
+bash "$SLICER" verify "${A[@]}" --blueprint "$BP" >/dev/null 2>&1
+assert "distilled-owned markers are ignored by verify (exit 0)" $? ""
 
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
