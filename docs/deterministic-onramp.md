@@ -245,6 +245,39 @@ the shared anatomy when its spec ships. Prose convergence is soft
 (anchor-level, not byte-level) and is honestly claimed as such — structure
 convergence stays hard (scaffold + verify).
 
+What each seeding actually changes in the resulting map:
+
+| dimension | code-seeded | docs-seeded |
+|---|---|---|
+| section set | computed by the slicer from the tree (subsystems as they exist) | inherited from the doc's `##` headings (the author's conceptual cut) |
+| section states | `code` (settled) + `context` | mostly `detailed` (backlog), plus `distilled`/`context` |
+| content | evidence-anchored digest of what **is** | design detail of what **should be** (payload for future specs) |
+| baselines | tree/blob SHAs everywhere | only where implementations already exist |
+| `next` on the fresh map | idle (nothing to build until a spec opens) | `specify` (backlog exists) |
+| granularity driver | thresholds / boundary files / pins (config) | the doc author's mental model |
+
+In short: code-seeding yields a *map of the present* with an empty backlog;
+docs-seeding yields a *map of the intended* whose sections carry future work.
+Sections are **subsystems, not features** — features are specs, born when
+`/speckit.specify` pulls from the map; the two seedings differ in how much
+proto-feature material (detailed sections) the map starts with.
+
+**The hybrid on-ramp (brownfield repos with real docs) consumes both.** This is
+the Reflexion-Models division of labor, and it composes from existing
+machinery with no new code: the code decides the settled structure (scaffold,
+hard lane); the docs contribute through exactly three sanctioned channels —
+grouping/naming disagreements land in **config** (pins/context/thresholds,
+then re-scaffold: the doc's structural influence is checked in and replays),
+doc knowledge about existing code lands in **prose** as *secondary* anchors
+(code wins on disagreement — which is itself a finding worth noting), and
+designed-but-unbuilt content lands as **`detailed` sections — the backlog**,
+so the map comes out with real work and `next` moves from idle to `specify`.
+Machine-checked coexistence: a markerless detailed section is invisible to
+`verify` (outside slicer jurisdiction) while the oracle counts it as backlog
+(both asserted in `tests/slicer_test.sh`). A doc subsystem that cross-cuts
+directories cannot be a code section (markers are tree/blob paths); it becomes
+a `context` or `detailed` section citing the doc — never bent markers.
+
 ## Open questions (deliberately not resolved in this spike)
 
 1. **Cross-cutting concerns.** A directory partition cannot express `compat`

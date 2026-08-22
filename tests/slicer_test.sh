@@ -235,6 +235,20 @@ bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" --path newmod >/dev/null 2
 bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
 assert "appended scaffold block restores full conformance" $? ""
 
+# 15. hybrid on-ramp coexistence: a markerless DETAILED section (backlog seeded
+#     from docs) lives alongside the computed code sections without disturbing
+#     verify (no markers -> outside slicer jurisdiction) while the oracle counts
+#     it as backlog (next: specify instead of idle).
+cat >> "$B2" <<'EOF'
+## Planned: streaming ingestion
+<!-- blueprint:section state=detailed -->
+Design detail from the architecture doc — unbuilt; a future spec formalizes it.
+EOF
+bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+assert "detailed (docs-seeded backlog) section is invisible to verify" $? ""
+bash "$ORACLE" next --json --root "$R2" --blueprint "$B2" 2>/dev/null | grep -q '"phase": "specify"'
+assert "detailed section turns next from idle into specify (backlog works)" $? ""
+
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
