@@ -3,9 +3,9 @@
 # Layered: extension defaults < this file < blueprint-config.local.yml < SPECKIT_BLUEPRINT_* env
 
 blueprint:
-  # Where the blueprint document lives, relative to the repo root. The oracle
-  # auto-detects docs/blueprint.md, docs/overview.md, or .specify/memory/blueprint.md
-  # if this is unset.
+  # Where the blueprint document lives, relative to the repo root. If unset, the
+  # oracle auto-detects the canonical .specify/memory/blueprint.md first, then the
+  # legacy homes docs/blueprint.md and docs/overview.md.
   path: ".specify/memory/blueprint.md"
 
 distill:

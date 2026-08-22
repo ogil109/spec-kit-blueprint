@@ -54,7 +54,8 @@ if (-not $Blueprint) {
   }
 }
 if (-not $Blueprint -or -not (Test-Path $Blueprint)) {
-  foreach ($c in @("docs/blueprint.md", "docs/overview.md", ".specify/memory/blueprint.md")) {
+  # Canonical location first (matches the config default); docs/ candidates are legacy homes.
+  foreach ($c in @(".specify/memory/blueprint.md", "docs/blueprint.md", "docs/overview.md")) {
     if (Test-Path (Join-Path $Root $c)) { $Blueprint = Join-Path $Root $c; break }
   }
 }

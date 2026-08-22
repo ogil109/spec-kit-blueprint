@@ -36,8 +36,9 @@ $ARGUMENTS
 
 1. Repo root = nearest ancestor with `.specify/`.
 2. `BLUEPRINT` = `blueprint-config.yml` → `blueprint.path`, else the doc path in
-   `$ARGUMENTS`, else auto-detect (`docs/blueprint.md`, `docs/overview.md`,
-   `.specify/memory/blueprint.md`), else create from the template at the config path.
+   `$ARGUMENTS`, else auto-detect (the canonical `.specify/memory/blueprint.md` first,
+   then `docs/blueprint.md`, `docs/overview.md`), else create from the template at the
+   config path.
    If a doc path was given, that doc **is** the blueprint (normalize it in place); do
    not silently create a second one.
 3. Template: `.specify/extensions/blueprint-index/templates/blueprint-template.md`.
