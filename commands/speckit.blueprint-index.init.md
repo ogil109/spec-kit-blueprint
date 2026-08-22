@@ -25,12 +25,13 @@ $ARGUMENTS
   use it as the blueprint and stamp/normalize every section. Ideal for an existing
   master doc that already half-follows the pattern.
 - **`--from-code`** (optionally scoped: `--from-code src/<area>`) — *brownfield*:
-  reverse-map the codebase into code-owned sections. **The section set is computed, not
-  chosen**: the deterministic partitioner (`blueprint-slice.sh`) emits it from
-  `git ls-files` + checked-in config, and you author each section's prose — see
-  *Brownfield on-ramp* below. Scoped to a single path, it maps **just that area** (a
-  *partial* init) without touching the rest — this is the remedy the `check` gate
-  points at for an `unmapped` (new, uncovered) code area.
+  reverse-map the codebase into code-owned sections. **The map's structure is
+  machine-written, not chosen**: `blueprint-slice.sh scaffold` emits the skeleton
+  (sections, markers, TOC) deterministically from `git ls-files` + checked-in config,
+  and you author only the prose placeholders — see *Brownfield on-ramp* below. Scoped
+  to a single path, it maps **just that area** (a *partial* init) without touching the
+  rest — this is the remedy the `check` gate points at for an `unmapped` (new,
+  uncovered) code area.
 - **Empty** — scaffold an empty blueprint from the template, or normalize the
   already-configured/auto-detected blueprint.
 
@@ -107,43 +108,40 @@ never delete a section's design detail.**
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` can detect later code drift.
 
-## Brownfield on-ramp (`--from-code`): structure is computed, prose is authored
+## Brownfield on-ramp (`--from-code`): structure is machine-written, prose is authored
 
 Two independent runs of this on-ramp must produce the **same map structure**. That is
-only possible if the slicing decision is not yours. The division of labor:
+guaranteed by never letting you write structure at all:
 
-1. **Run the partitioner first** —
-   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh slice --json`
-   (add `--scope <dir>` when the init is scoped). Its output is deterministic: same repo
-   state + same config ⇒ byte-identical partition.
+1. **Scaffold writes the map, not you** —
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh scaffold`
+   emits the complete, deterministic skeleton: title, how-this-works header,
+   status-annotated TOC, and every computed section with its provenance markers,
+   banner, and a `TODO(prose)` placeholder. Redirect it to the blueprint path when no
+   map exists. Against an existing map it emits **only the missing additive section
+   blocks** (append them); add `--scope <dir>` when the init is scoped — this is the
+   remedy flow for an `unmapped` gate issue. Same repo state + same config ⇒
+   byte-identical output.
 
-2. **The `sections` array IS the section set.** Do not add, drop, merge, split, or
-   resize sections, and do not remap a path to a different section. Each entry becomes
-   one `## <path>` heading (append ` (remainder)` when `"remainder": true`), stamped
-   exactly as emitted:
-   - `kind=code` → `<!-- blueprint:section state=code -->` plus one
-     `<!-- blueprint:code path=<m> sha=NONE -->` per entry in `markers`.
-   - `kind=context` → `<!-- blueprint:section state=context -->` plus one
-     `<!-- blueprint:context path=<m> -->` per entry in `markers`.
+2. **Your ONLY edit is replacing the `TODO(prose)` placeholders** (including the TOC
+   one-liners): for each section, read the code it covers and write the role sentence
+   + at-a-glance digest (mechanics, entry points; do not redesign). Touch nothing
+   else — no headings, no markers, no banners, no section order. Two runs may word
+   prose differently — no oracle reads prose.
 
-3. **Your work is the prose.** For each section, read the code it covers and write the
-   role sentence + at-a-glance digest (mechanics, entry points; do not redesign). Two
-   runs may word this differently — the gate never reads prose, only markers.
+3. **Every tracked file is accounted for, nothing silently absent.** Run
+   `blueprint-slice.sh slice --json` and echo its `excluded` and `root_files` lists
+   and any `advisories` in your report so a human reviews what stayed out — that
+   review is the whole point of the on-ramp.
 
-4. **Every entry is discharged, nothing silently absent.** The partition accounts for
-   every tracked file: `sections` (mapped), `excluded` (matched a checked-in pattern),
-   or `root_files` (root-level loose files, outside coverage by design). Echo the
-   `excluded` and `root_files` lists and any `advisories` in your report so a human
-   reviews what stayed out — that review is the whole point of the on-ramp.
-
-5. **Disagree with the cut? Change the config, not the map.** Granularity and scope are
+4. **Disagree with the cut? Change the config, not the map.** Granularity and scope are
    owned by `blueprint-config.yml` (`slice.max_files`, `slice.min_files`,
-   `slice.boundary_files`, `slice.context_dirs`, `coverage.exclude`). Edit it, re-run
-   the partitioner, re-derive. The override is then checked in and **replays
-   identically on every future run** — a freehand deviation would be lost
-   non-determinism the next run can't reproduce.
+   `slice.boundary_files`, `slice.context_dirs`, `slice.pin_dirs`,
+   `coverage.exclude`). Edit it, re-scaffold, re-fill the prose. The override is then
+   checked in and **replays identically on every future run** — a freehand deviation
+   would be lost non-determinism the next run can't reproduce.
 
-6. **Close the loop — conformance is machine-checked.** Run restamp (step 7
+5. **Close the loop — conformance is machine-checked.** Run restamp (step 7
    above), then two oracles must both pass:
    - `blueprint-slice.sh verify` — recomputes the partition and diffs it against
      the (section, kind, marker) structure you actually wrote. A merged,
@@ -151,6 +149,7 @@ only possible if the slicing decision is not yours. The division of labor:
      diff and exit 1. Rule 2 is not an honor system.
    - `blueprint-state.sh check` — the scoped area must report **no `unmapped`
      issues**.
+   Also confirm no `TODO(prose)` placeholder remains (`grep -c 'TODO(prose)'`).
    On failure, fix the structure (or the config, then re-derive) — never
    silence the oracles.
 
@@ -169,6 +168,7 @@ only possible if the slicing decision is not yours. The division of labor:
 - Never fabricate design detail or code behavior not present in the source.
 - Every managed section must end with exactly one `blueprint:section` marker — that is
   the extension's deterministic record of provenance.
-- **`--from-code` structure is computed, never improvised:** the section set comes from
-  `blueprint-slice.sh` verbatim; your judgment goes into the prose and, when the cut is
-  wrong, into `blueprint-config.yml` (then re-run) — never into freehand sections.
+- **`--from-code` structure is machine-written, never improvised:** `blueprint-slice.sh
+  scaffold` writes the skeleton; your judgment goes into the `TODO(prose)` placeholders
+  and, when the cut is wrong, into `blueprint-config.yml` (then re-scaffold) — never
+  into freehand structure. `verify` enforces this after the fact.
