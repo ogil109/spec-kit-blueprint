@@ -8,6 +8,16 @@ do not hand-edit, it is rewritten in full. This project adheres to
 Each release's narrative — why a change was made, and its caveats — is in the
 [GitHub release notes](https://github.com/ogil109/spec-kit-blueprint/releases).
 
+## v0.2.1 (2026-08-22)
+
+### Fixed
+
+- **oracle**: auto-detect prefers the canonical .specify/memory location
+- **oracle**: do not crash when the config file has no path key
+- **oracle**: make restamp's in-place edit portable to BSD sed
+- **oracle**: resolve the configured blueprint path portably and never fall back silently
+- **manifest**: declare provides.scripts as name/file mappings (bare paths are rejected by spec-kit >=0.16.5)
+
 ## v0.2.0 (2026-07-24)
 
 ### BREAKING CHANGE
