@@ -19,6 +19,7 @@ jobs:
           bash tests/harness_loop_test.sh
           bash tests/portability_lint_test.sh
           bash tests/slicer_test.sh
+          bash tests/e2e_lifecycle_test.sh
 
   commits:
     name: commit conventions
