@@ -39,10 +39,13 @@ For each targeted code-owned section:
    another subsystem, a split/merged module. Ignore implementation detail below the
    map (a bug fix that doesn't change the section's claims needs no prose change).
 
-2. **Update the digest** to match today's code: fix the role sentence and the
-   at-a-glance bullets so the section is true again. **Map what exists; do not
-   redesign.** If the change was purely below map altitude, the prose may be
-   unchanged — that's fine; you're still refreshing the baseline.
+2. **Update the digest** to match today's code, per the shared section-anatomy
+   contract (`.specify/extensions/blueprint-index/templates/section-anatomy.md`):
+   fix the role sentence and the evidence-anchored at-a-glance bullets so the
+   section is true again — same recovery procedure as the brownfield on-ramp.
+   **Map what exists; do not redesign.** If the change was purely below map
+   altitude, the prose may be unchanged — that's fine; you're still refreshing
+   the baseline.
 
 3. **If a `DANGLING` section** points at code that no longer exists, either repoint
    its `path=` marker at the code's new location, or (if the subsystem is gone)

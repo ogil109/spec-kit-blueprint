@@ -389,8 +389,9 @@ if [ "$CMD" = "scaffold" ]; then
       printf '> Framing / documentation tree — on the map, not a buildable slice.\n'
       for m in $markers; do printf '<!-- blueprint:context path=%s -->\n' "$m"; done
     fi
-    printf '\nTODO(prose): role sentence + at-a-glance digest for `%s` — the only\n' "$path"
-    printf 'agent-authored part; replace this line, touch nothing else.\n\n---\n\n'
+    printf '\nTODO(prose): fill per templates/section-anatomy.md (role sentence +\n'
+    printf 'evidence-anchored digest for `%s`) — the only agent-authored part;\n' "$path"
+    printf 'replace this line, touch nothing else.\n\n---\n\n'
   }
   # -s, not -f: `scaffold > map.md` creates the empty redirect target before the
   # script runs — an empty blueprint must still get the full skeleton + header.

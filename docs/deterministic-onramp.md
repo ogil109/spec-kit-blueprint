@@ -215,6 +215,36 @@ tree marker spanning territory another owner already covers. Subtracted paths
 now force their ancestors to descend (`hnested`, hole-veto on every whole-tree
 emit, pins included), so no emitted marker can ever overlap covered ground.
 
+## One document type, two on-ramps (the convergence claim)
+
+Should the docs (greenfield/formalize) on-ramp be dropped in favor of
+code-only seeding? **No — the difference worth erasing is anatomical, not
+on-ramp-shaped, and the difference worth keeping is semantic.** The `detailed`
+(holding-pen) state must exist regardless: it is the backlog that drives the
+waterfall, and the docs on-ramp is merely the entry path that populates it
+from an existing design doc (it shares all marker/gate machinery, so it is
+nearly free to keep). What made the two on-ramps feel like different tools was
+that their *prose* had no shared contract.
+
+That contract now ships: `templates/section-anatomy.md` — five parts (heading +
+marker are machine lane; banner, role sentence, evidence-anchored digest,
+closer are the prose lane), evidence rules (every bullet anchored to a real
+path or spec section; cross-references name sections, not files), and the
+**architecture-recovery procedure** for code-owned sections (inventory →
+boundary-before-depth → write → self-check). `init --from-code`, `remap`, and
+`distill` all reference it, and the scaffold's `TODO(prose)` placeholders point
+at it, so in spec-kit terms the rendered init agent *is* the shipped
+architecture-recovery agent.
+
+Convergence, stated precisely: a code-seeded map and a docs-seeded map meet at
+the same steady-state anatomy as sections settle — the lasting difference is
+the provenance marker (`code` vs `distilled owner=specs/<slug>`), which encodes
+where the truth lives and must remain. A detailed section is temporarily
+richer *by design*: its content is the backlog payload, and it collapses to
+the shared anatomy when its spec ships. Prose convergence is soft
+(anchor-level, not byte-level) and is honestly claimed as such — structure
+convergence stays hard (scaffold + verify).
+
 ## Open questions (deliberately not resolved in this spike)
 
 1. **Cross-cutting concerns.** A directory partition cannot express `compat`

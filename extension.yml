@@ -30,6 +30,14 @@ provides:
       file: commands/speckit.blueprint-index.remap.md
       description: "Re-derive a section from current code and refresh its git baseline — resync the map after out-of-band code changes (run the check gate in CI to detect them)"
 
+  templates:
+    - name: blueprint-template
+      file: templates/blueprint-template.md
+      description: "The blueprint document type: decreasing-detail map, provenance markers, two on-ramps"
+    - name: section-anatomy
+      file: templates/section-anatomy.md
+      description: "The shared prose contract for every settled section + the architecture-recovery procedure (init --from-code, remap, distill all write to it)"
+
   config:
     - name: "blueprint-config.yml"
       template: "config-template.yml"

@@ -31,6 +31,10 @@ spec the oracle reports (`blueprint-state.sh status` → "Distill drift").
 
 ## Altitude — get this right
 
+The result must follow the shared **section anatomy**
+(`.specify/extensions/blueprint-index/templates/section-anatomy.md`) — the same
+contract the brownfield on-ramp and `remap` write to, which is what keeps a map
+seeded from docs and a map seeded from code reading as one document type.
 Distillation is **not** "compress to 2 sentences." At map altitude a reader should
 still see the **load-bearing mechanics** without opening the spec. Keep an
 **at-a-glance digest** of the decisions that define the slice's shape; drop only

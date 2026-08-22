@@ -150,6 +150,15 @@ brownfield on-ramp separates two jobs the way architecture-recovery tooling alwa
    is wrong, into `blueprint-config.yml` (`slice.*`, `coverage.exclude`) followed by a
    re-scaffold: the override is checked in and replays identically forever.
 
+The prose itself follows a shipped **architecture-recovery contract**
+(`templates/section-anatomy.md`): every settled section has the same five-part shape —
+banner, role sentence, evidence-anchored digest, closer — written by a fixed procedure
+(inventory → boundary-before-depth → write → self-check), so two recovery runs converge
+on the same anchors even where wording differs. `init --from-code`, `remap`, and
+`distill` all write to the same contract, which is what makes a map seeded from code
+and a map seeded from a design doc read as **one document type**: as sections settle,
+the only lasting difference is the provenance marker.
+
 Re-runs against an existing map are **additive**: already-covered paths are subtracted,
 new code shows up as new proposed sections, and an existing section that outgrew
 `slice.max_files` surfaces as an advisory instead of being silently re-partitioned.
