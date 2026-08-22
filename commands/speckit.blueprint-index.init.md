@@ -124,10 +124,15 @@ guaranteed by never letting you write structure at all:
    byte-identical output.
 
 2. **Your ONLY edit is replacing the `TODO(prose)` placeholders** (including the TOC
-   one-liners): for each section, read the code it covers and write the role sentence
-   + at-a-glance digest (mechanics, entry points; do not redesign). Touch nothing
-   else — no headings, no markers, no banners, no section order. Two runs may word
-   prose differently — no oracle reads prose.
+   one-liners), following the **architecture-recovery procedure** in
+   `.specify/extensions/blueprint-index/templates/section-anatomy.md` — the shared
+   contract every settled section obeys (banner, role sentence, evidence-anchored
+   at-a-glance digest, closer; inventory → boundary-before-depth → write →
+   self-check). Anchors must resolve to paths under the section's own markers;
+   cross-references name *sections*, not files. Touch nothing else — no headings,
+   no markers, no banners, no section order. Two runs may word prose differently,
+   but they walk the same evidence in the same order, so the anchors converge —
+   and no oracle reads prose either way.
 
 3. **Every tracked file is accounted for, nothing silently absent.** Run
    `blueprint-slice.sh slice --json` and echo its `excluded` and `root_files` lists
