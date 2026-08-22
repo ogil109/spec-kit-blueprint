@@ -155,6 +155,19 @@ import json,sys
 assert json.load(sys.stdin)['blueprint']=='docs/blueprint.md'
 " >/dev/null 2>&1; assert "missing configured path still falls back to auto-detect" $? "$fbjson"
 
+# 11b. auto-detect prefers the canonical .specify/memory location over the
+#      legacy docs/ homes when both exist and no path is configured.
+rm -f "$R6/.specify/extensions/blueprint-index/blueprint-config.yml"
+mkdir -p "$R6/.specify/memory"
+printf '# BP\n## A\n<!-- blueprint:section state=context -->\n' > "$R6/.specify/memory/blueprint.md"
+git -C "$R6" add -A; git -C "$R6" commit -qm canonical
+canonjson="$(bash "$ORACLE" check --json --root "$R6" 2>/dev/null)"
+echo "$canonjson" | python3 -c "
+import json,sys
+assert json.load(sys.stdin)['blueprint']=='.specify/memory/blueprint.md'
+" >/dev/null 2>&1; assert "auto-detect prefers .specify/memory over docs/" $? "$canonjson"
+rm -f "$R6/.specify/memory/blueprint.md"
+
 # 12. a config file WITHOUT a path: key must not crash the oracle (set -euo
 #     pipefail turned grep's no-match exit 1 into a hard death of the script).
 printf 'distill:\n  require_confirmation: false\n' > "$R6/.specify/extensions/blueprint-index/blueprint-config.yml"
