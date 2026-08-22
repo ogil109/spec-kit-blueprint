@@ -174,6 +174,36 @@ Readings, stated plainly:
   `restamp --path` heals → out-of-band new module flags `UNMAPPED` (defect #2's
   exact scenario, now caught) → additive re-slice proposes only the new piece.
 
+**Downstream consumption — is the output a *true* blueprint?** Determinism
+alone doesn't prove the map is useful, so a 20-assert e2e drives the
+template-conformant pandas map (title, how-this-works header, status-annotated
+TOC, banners + digests per the shipped template) through every downstream
+surface, using only the shipped scripts:
+
+- the **`next` oracle** consumes it correctly: idle on the fresh map (all
+  sections settled — nothing hallucinated as backlog), then sequences a real
+  feature spec end to end (`plan → tasks → implement → distill → idle`);
+- the **gate lifecycle** works against it: a built spec not yet in the map is
+  HARD drift (exit 1) with the distill remedy; converting `pandas/io` to
+  `state=distilled owner=specs/<slug>` clears it, and `verify` correctly moves
+  the section out of slicer jurisdiction;
+- the **remedy JSON contract is machine-actionable**: a scripted (no-LLM)
+  consumer reads `check --json`, applies each issue's deterministic remedy
+  core, and turns the gate green again — including under `--strict`;
+- **out-of-band code re-onboards through the remedy**: a new module flags
+  `UNMAPPED`, the scoped slice computes exactly the missing section, appending
+  it + restamp restores a clean gate, and `verify` proves the scoped result
+  equals the full recompute.
+
+The same flow runs in CI against a synthetic fixture
+(`tests/e2e_lifecycle_test.sh`). It caught a real design bug on first
+execution: **subtraction must leave holes**. Removing covered paths (a
+spec-owned slice in `verify`, existing markers in additive re-runs) can shrink
+a parent below `max_files`, so the recompute emitted the parent *whole* — a
+tree marker spanning territory another owner already covers. Subtracted paths
+now force their ancestors to descend (`hnested`, hole-veto on every whole-tree
+emit, pins included), so no emitted marker can ever overlap covered ground.
+
 ## Open questions (deliberately not resolved in this spike)
 
 1. **Cross-cutting concerns.** A directory partition cannot express `compat`
@@ -200,7 +230,9 @@ Readings, stated plainly:
 `tests/slicer_test.sh` (15 asserts: rules, byte-determinism, scope-subset,
 end-to-end blind-spot closure, additive re-runs, oversize advisories, pins, and
 `verify` — conforming map passes; a merged section, structure drift, and
-distilled-ownership subtraction are each exercised)
+distilled-ownership subtraction are each exercised) and
+`tests/e2e_lifecycle_test.sh` (17 asserts: the full downstream lifecycle above,
+CI-runnable on a synthetic fixture)
 plus 8 new gate asserts in `tests/check_remap_test.sh` (widened scan, context
 coverage, config excludes, no-blueprint silence). The pandas run used the same
 shipped scripts unmodified; analysis code (import graph, MQ/ARI/NMI/MoJo) lives
