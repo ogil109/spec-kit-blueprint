@@ -15,6 +15,7 @@
 # Usage:
 #   blueprint-slice.sh [slice] [--json|--human]
 #     [--root <dir>] [--blueprint <path>] [--scope <dir>] [--all]
+#   blueprint-slice.sh verify [--json|--human] [--root <dir>] [--blueprint <path>]
 #
 #   --scope <dir>  partition just this directory (the `init --from-code <dir>`
 #                  partial on-ramp). Determinism makes the result a subset of
@@ -24,6 +25,17 @@
 #                  subtracted, so re-running proposes only ADDITIVE sections and
 #                  never silently repartitions an existing map; existing code
 #                  sections that now exceed max_files surface as advisories.
+#
+#   verify         structure-conformance check: recompute the partition and diff
+#                  it against the (section, kind, marker) structure actually
+#                  written in the map. The agent is INSTRUCTED to copy the
+#                  partition verbatim — verify makes that a machine-checked
+#                  property instead of prompt discipline: a merged, dropped,
+#                  renamed, regrouped, or freehand-invented section shows up as
+#                  a deterministic pair diff (exit 1). Markers owned by
+#                  distilled/detailed sections are a spec's implementation
+#                  footprint, outside the slicer's jurisdiction: their paths are
+#                  subtracted from the recompute and ignored in the diff.
 #
 # Config (blueprint-config.yml — the checked-in record of every human override;
 # see config-template.yml for semantics and defaults):
@@ -52,7 +64,7 @@ if [ "$JSON" = "1" ]; then FMT=json
 elif [ "$HUMAN" = "1" ]; then FMT=human
 elif [ -t 1 ]; then FMT=human
 else FMT=json; fi
-[ "$CMD" = "slice" ] || { echo "unknown command: $CMD (only: slice)" >&2; exit 2; }
+case "$CMD" in slice|verify) ;; *) echo "unknown command: $CMD (only: slice, verify)" >&2; exit 2 ;; esac
 
 # ── locate repo root (same rule as the state oracle) ──────────────────────────
 if [ -z "$ROOT" ]; then
@@ -73,7 +85,8 @@ if [ -z "$BLUEPRINT" ] && [ -f "$CFG" ]; then
   [ -n "$p" ] && [ -f "$ROOT/$p" ] && BLUEPRINT="$ROOT/$p"
 fi
 if [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; then
-  for cand in docs/blueprint.md docs/overview.md .specify/memory/blueprint.md; do
+  # Canonical location first (matches the config default); docs/ candidates are legacy homes.
+  for cand in .specify/memory/blueprint.md docs/blueprint.md docs/overview.md; do
     [ -f "$ROOT/$cand" ] && BLUEPRINT="$ROOT/$cand" && break
   done
 fi
@@ -122,9 +135,33 @@ EXCLUDES="$(cfg_list coverage exclude)"
 [ -z "$EXCLUDES" ] && EXCLUDES=".*
 specs"
 
+US=$'\x1f'
+
+# ── verify: parse the map's actual structure (state, heading, kind, marker) ───
+# Headings are normalized (strip "## ", strip a " (remainder)" suffix) so the
+# expected heading for a slicer-owned section is exactly its path.
+DOCPAIRS=""
+if [ "$CMD" = "verify" ]; then
+  { [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; } || { echo "verify: no blueprint found" >&2; exit 1; }
+  DOCPAIRS="$(awk -v US="$US" '
+    /^## / { h = $0; sub(/^##[[:space:]]+/, "", h); sub(/ \(remainder\)$/, "", h); heading = h; state = ""; next }
+    /<!-- blueprint:section state=/ { s = $0; sub(/.*state=/, "", s); sub(/[[:space:]].*/, "", s); state = s; next }
+    /<!-- blueprint:code path=/     { p = $0; sub(/.*path=/, "", p); sub(/[[:space:]].*/, "", p); print state US heading US "code" US p; next }
+    /<!-- blueprint:context path=/  { p = $0; sub(/.*path=/, "", p); sub(/[[:space:]].*/, "", p); print state US heading US "context" US p; next }
+  ' "$BLUEPRINT")"
+fi
+
 # ── existing coverage (markers are the record; subtracted unless --all) ───────
+# verify subtracts ONLY spec-owned markers (a distilled/detailed section's
+# implementation footprint) and recomputes everything else, so the diff judges
+# exactly the slicer-owned structure.
 covered=()
-if [ "$ALL" = "0" ] && [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; then
+if [ "$CMD" = "verify" ]; then
+  while IFS= read -r p; do [ -n "$p" ] && covered+=("$p"); done < <(
+    printf '%s\n' "$DOCPAIRS" \
+      | awk -F"$US" '($1=="distilled" || $1=="detailed") && $3=="code" { print $4 }' \
+      | LC_ALL=C sort -u)
+elif [ "$ALL" = "0" ] && [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; then
   while IFS= read -r p; do [ -n "$p" ] && covered+=("$p"); done < <(
     grep -oE '<!-- blueprint:(code|context) path=[^ ]+' "$BLUEPRINT" 2>/dev/null \
       | sed -E 's/.*path=//' | LC_ALL=C sort -u)
@@ -134,7 +171,6 @@ excl=(); while IFS= read -r g; do [ -n "$g" ] && excl+=("$g"); done <<<"$EXCLUDE
 BP_REL=""; [ -n "$BLUEPRINT" ] && BP_REL="${BLUEPRINT#"$ROOT/"}"
 
 # ── the file stream: filter in bash (globs), partition in awk (deterministic) ─
-US=$'\x1f'
 ROOT_FILES=()      # root-level loose files: reported, never partitioned
 EXCLUDED=()        # "path<US>pattern" — what the excludes consciously removed
 SUBTRACTED=0       # files already covered by existing markers
@@ -248,6 +284,62 @@ function partition(d,   n, mod, kids, nk, i, c, remm, remc, dfl, nfl) {
   for (i = 1; i <= nfl; i++) { remm = (remm == "" ? dfl[i] : remm " " dfl[i]); remc++ }
   if (remm != "") print "code" US d US "1" US "remainder" US remc US remm
 }' "$FEED")"
+
+# ── verify: diff the computed structure against the map's actual structure ────
+if [ "$CMD" = "verify" ]; then
+  EXP="$(mktemp)"; ACT="$(mktemp)"
+  trap 'rm -f "$FEED" "$EXP" "$ACT"' EXIT
+  while IFS="$US" read -r kind path rem rule count markers; do
+    [ -n "$kind" ] || continue
+    for m in $markers; do printf '%s\n' "$path$US$kind$US$m"; done
+  done <<<"$PART" | LC_ALL=C sort > "$EXP"
+  printf '%s\n' "$DOCPAIRS" \
+    | awk -F"$US" -v US="$US" '($1=="code" || $1=="context") { print $2 US $3 US $4 }' \
+    | LC_ALL=C sort -u > "$ACT"
+  MISSING="$(LC_ALL=C comm -23 "$EXP" "$ACT")"
+  UNEXPECTED="$(LC_ALL=C comm -13 "$EXP" "$ACT")"
+  ok=true; { [ -n "$MISSING" ] || [ -n "$UNEXPECTED" ]; } && ok=false
+  jesc() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+  if [ "$FMT" = json ]; then
+    printf '{"blueprint_slice_schema":"1","command":"verify","blueprint":"%s","structure_ok":%s,"missing":[' \
+      "$(jesc "${BLUEPRINT#"$ROOT/"}")" "$ok"
+    first=1
+    while IFS="$US" read -r sec kind m; do
+      [ -n "$sec" ] || continue
+      [ $first -eq 1 ] || printf ','; first=0
+      printf '{"section":"%s","kind":"%s","marker":"%s"}' "$(jesc "$sec")" "$kind" "$(jesc "$m")"
+    done <<<"$MISSING"
+    printf '],"unexpected":['
+    first=1
+    while IFS="$US" read -r sec kind m; do
+      [ -n "$sec" ] || continue
+      [ $first -eq 1 ] || printf ','; first=0
+      printf '{"section":"%s","kind":"%s","marker":"%s"}' "$(jesc "$sec")" "$kind" "$(jesc "$m")"
+    done <<<"$UNEXPECTED"
+    printf ']}\n'
+  else
+    echo "blueprint-slice verify — map structure vs computed partition"
+    if [ "$ok" = true ]; then
+      n=$(grep -c . "$EXP" || true)
+      echo "  structure conforms ✓ ($n marker(s) exactly as computed)"
+    else
+      if [ -n "$MISSING" ]; then
+        echo "  MISSING — computed by the partition, absent from the map:"
+        while IFS="$US" read -r sec kind m; do
+          [ -n "$sec" ] && printf '    %-8s %-40s marker: %s\n' "$kind" "$sec" "$m"
+        done <<<"$MISSING"
+      fi
+      if [ -n "$UNEXPECTED" ]; then
+        echo "  UNEXPECTED — in the map, not computed (freehand / merged / renamed):"
+        while IFS="$US" read -r sec kind m; do
+          [ -n "$sec" ] && printf '    %-8s %-40s marker: %s\n' "$kind" "$sec" "$m"
+        done <<<"$UNEXPECTED"
+      fi
+      echo "  fix: restore the computed structure, or change blueprint-config.yml and re-run the slicer"
+    fi
+  fi
+  [ "$ok" = true ] && exit 0 || exit 1
+fi
 
 # ── advisories: existing code sections that outgrew the thresholds ────────────
 ADVISORIES=()

@@ -151,9 +151,13 @@ brownfield on-ramp separates two jobs the way architecture-recovery tooling alwa
 Re-runs against an existing map are **additive**: already-covered paths are subtracted,
 new code shows up as new proposed sections, and an existing section that outgrew
 `slice.max_files` surfaces as an advisory instead of being silently re-partitioned.
-The `check` gate closes the loop: its coverage scan spans **all** top-level directories,
-so a tree the on-ramp missed (or code added later) is flagged `unmapped` rather than
-staying invisible.
+Conformance is **machine-checked, not an honor system**: `blueprint-slice.sh verify`
+recomputes the partition and diffs it against the (section, marker) structure actually
+written in the map — an agent that merged, dropped, renamed, or invented a section
+produces a deterministic pair diff and a non-zero exit. And the `check` gate closes the
+loop over time: its coverage scan spans **all** top-level directories, so a tree the
+on-ramp missed (or code added later) is flagged `unmapped` rather than staying
+invisible.
 
 ```console
 $ blueprint-slice.sh

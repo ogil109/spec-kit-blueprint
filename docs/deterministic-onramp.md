@@ -106,7 +106,22 @@ rules.
 
 `init --from-code` (the command) consumes the partition verbatim: the agent may
 not add, drop, merge, split, or resize sections; its judgment is the prose and,
-when the cut is wrong, the config. The `check` gate closes the loop: the
+when the cut is wrong, the config. That instruction is **not an honor system** —
+the guardrail chain has three layers, two of them hard:
+
+1. *Soft*: the command text constrains the agent (structure verbatim, prose
+   only).
+2. *Hard*: `blueprint-slice.sh verify` recomputes the partition and diffs it
+   against the (section, kind, marker) structure actually written in the doc.
+   A merged, dropped, renamed, regrouped, or freehand-invented section is a
+   deterministic pair diff and exit 1. Markers owned by `distilled`/`detailed`
+   sections (a spec's implementation footprint) are outside the slicer's
+   jurisdiction and are subtracted before the diff.
+3. *Hard*: the `check` gate's widened coverage scan catches dropped territory
+   and everything that drifts later.
+
+So the agent's remaining degrees of freedom are exactly two: the prose inside
+each computed section, and checked-in config changes followed by a re-run. The `check` gate closes the loop: the
 coverage scan now spans **all** top-level directories (kills defect #2, plus
 the old zero-marker guard and the word-split space edge), with
 `blueprint:context path=` markers covering docs-like trees baseline-free.
@@ -182,8 +197,10 @@ Readings, stated plainly:
 
 ## Verification retained
 
-`tests/slicer_test.sh` (11 asserts: rules, byte-determinism, scope-subset,
-end-to-end blind-spot closure, additive re-runs, oversize advisories, pins)
+`tests/slicer_test.sh` (15 asserts: rules, byte-determinism, scope-subset,
+end-to-end blind-spot closure, additive re-runs, oversize advisories, pins, and
+`verify` — conforming map passes; a merged section, structure drift, and
+distilled-ownership subtraction are each exercised)
 plus 8 new gate asserts in `tests/check_remap_test.sh` (widened scan, context
 coverage, config excludes, no-blueprint silence). The pandas run used the same
 shipped scripts unmodified; analysis code (import graph, MQ/ARI/NMI/MoJo) lives
