@@ -163,6 +163,13 @@ guaranteed by never letting you write structure at all:
    On failure, fix the structure (or the config, then re-derive) — never
    silence the oracles.
 
+6. **Stage 2 — recover the architecture.** With the sections settled and
+   verified, run the architecture-recovery specialist
+   (`speckit.blueprint-index.recover`): it derives how the subsystems relate —
+   dependency edges, layering, cycles, cross-cutting concerns — as
+   evidence-anchored relation markers that the `check` gate validates from
+   then on (`relation` / `relation-evidence` issues on decay).
+
 ## Hybrid on-ramp (`--from-code` + docs): code decides structure, docs contribute
 
 A brownfield repo with real design docs should consume **both** — this is the

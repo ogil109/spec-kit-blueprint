@@ -121,6 +121,12 @@ marker_sha()  { echo "$1" | sed -E 's/.*sha=([^ ]+).*/\1/'; }
 # Context coverage has NO baseline and NO staleness — it says "this exists and is
 # on the map, but it is not architecture-bearing buildable code".
 context_markers(){ [ -f "$BLUEPRINT" ] && grep -oE '<!-- blueprint:context path=[^ ]+ -->' "$BLUEPRINT" 2>/dev/null || true; }
+# Stage-2 architecture relations (agent-authored, oracle-validated):
+#   <!-- blueprint:relation from=<section> to=<section> kind=<uses|crosscuts> evidence=<path> -->
+# The oracle validates what is CHECKABLE about the agent's call — both endpoints
+# are managed sections, the evidence path exists in git — so recovered
+# architecture can't silently rot; the semantic truth of an edge stays judgment.
+relation_markers(){ [ -f "$BLUEPRINT" ] && grep -oE '<!-- blueprint:relation from=[^ ]+ to=[^ ]+ kind=[^ ]+ evidence=[^ ]+ -->' "$BLUEPRINT" 2>/dev/null || true; }
 # Paths the coverage scan never flags. From config (coverage.exclude), else the
 # defaults: hidden top-level dirs, and specs/ (first-class spec-kit state, gated
 # by distill drift instead). A pattern without "/" matches the FIRST path
@@ -303,6 +309,31 @@ if [ "$CMD" = "check" ]; then
     fi
   else
     echo "note: not a git repository — code-staleness/coverage checks skipped" >&2
+  fi
+
+  # relations (stage-2 architecture): validate the checkable half of every
+  # agent-authored edge — both endpoints are managed sections on the map, and
+  # the evidence path still exists in git. SOFT: a broken edge means the
+  # recovered architecture is behind reality; the remedy re-runs the recovery
+  # agent, which repairs (re-anchors/removes) rather than rewrites.
+  if [ -f "$BLUEPRINT" ]; then
+    sec_ids="$(awk '
+      /^## / { h = $0; sub(/^##[[:space:]]+/, "", h); sub(/ \(remainder\)$/, "", h); heading = h; next }
+      /<!-- blueprint:section/ { if (heading != "") print heading; heading = "" }
+    ' "$BLUEPRINT")"
+    while IFS= read -r rel; do
+      [ -n "$rel" ] || continue
+      rfrom="$(echo "$rel" | sed -E 's/.*from=([^ ]+).*/\1/')"
+      rto="$(echo "$rel" | sed -E 's/.*to=([^ ]+).*/\1/')"
+      rev_="$(echo "$rel" | sed -E 's/.*evidence=([^ ]+).*/\1/')"
+      for ep in "$rfrom" "$rto"; do
+        printf '%s\n' "$sec_ids" | grep -qxF "$ep" || \
+          add soft relation "$rfrom->$rto" "relation endpoint not on the map: $ep" "/speckit.blueprint-index.recover" authored
+      done
+      if is_git && [ -z "$(current_sha "$rev_")" ]; then
+        add soft relation-evidence "$rfrom->$rto" "relation evidence path gone: $rev_" "/speckit.blueprint-index.recover" authored
+      fi
+    done < <(relation_markers)
   fi
 
   hard_n=0; soft_n=0

@@ -197,6 +197,25 @@ if ($Command -eq "check") {
     }
   } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness/coverage checks skipped") }
 
+  # relations (stage-2 architecture): validate the checkable half of every
+  # agent-authored edge — endpoints are managed sections, evidence exists in git
+  # (mirrors the bash oracle). SOFT; remedy re-runs the recovery agent.
+  if ($Blueprint -and (Test-Path $Blueprint)) {
+    $secIds = @(); $heading = ""
+    foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
+      if ($line -match '^## ') { $heading = ($line -replace '^##\s+','' -replace ' \(remainder\)$','') }
+      elseif ($line -match '<!-- blueprint:section') { if ($heading) { $secIds += $heading }; $heading = "" }
+    }
+    $rels = Select-String -Path $Blueprint -Pattern '<!-- blueprint:relation from=(\S+) to=(\S+) kind=(\S+) evidence=(\S+) -->' -AllMatches |
+      ForEach-Object { $_.Matches } | ForEach-Object { [pscustomobject]@{ from=$_.Groups[1].Value; to=$_.Groups[2].Value; ev=$_.Groups[4].Value } }
+    foreach ($r in $rels) {
+      foreach ($ep in @($r.from, $r.to)) {
+        if ($secIds -notcontains $ep) { $issues += [pscustomobject]@{ severity="soft"; type="relation"; target="$($r.from)->$($r.to)"; detail="relation endpoint not on the map: $ep"; run="/speckit.blueprint-index.recover"; kind="authored" } }
+      }
+      if ((Test-Git) -and -not (Get-CurSha $r.ev)) { $issues += [pscustomobject]@{ severity="soft"; type="relation-evidence"; target="$($r.from)->$($r.to)"; detail="relation evidence path gone: $($r.ev)"; run="/speckit.blueprint-index.recover"; kind="authored" } }
+    }
+  }
+
   $hardN = @($issues | Where-Object { $_.severity -eq "hard" }).Count
   $softN = @($issues | Where-Object { $_.severity -eq "soft" }).Count
   $inSync = ($issues.Count -eq 0)
