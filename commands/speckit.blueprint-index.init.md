@@ -120,6 +120,7 @@ guaranteed by never letting you write structure at all:
 
 1. **Scaffold writes the map, not you** —
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh scaffold`
+   (or the PowerShell port, `scripts/powershell/blueprint-slice.ps1` — byte-identical output)
    emits the complete, deterministic skeleton: title, how-this-works header,
    status-annotated TOC, and every computed section with its provenance markers,
    banner, and a `TODO(prose)` placeholder. Redirect it to the blueprint path when no

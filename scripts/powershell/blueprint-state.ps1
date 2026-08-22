@@ -189,7 +189,12 @@ if ($Command -eq "check") {
       if ($coveredPaths | Where-Object { $_ -eq $d -or $_.StartsWith("$d/") }) { continue }  # covered-parent dir
       $uncovered += $d
     }
-    $uncovered = @($uncovered | Sort-Object -Unique)
+    # LC_ALL=C parity: Sort-Object is culture-aware; issue order must match bash
+    $uSet = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($x in $uncovered) { [void]$uSet.Add([string]$x) }
+    $uArr = [string[]]::new($uSet.Count); $uSet.CopyTo($uArr)
+    [Array]::Sort($uArr, [System.StringComparer]::Ordinal)
+    $uncovered = $uArr
     foreach ($d in $uncovered) {
       if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
       $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint-index.init --from-code $d"; kind="authored" }

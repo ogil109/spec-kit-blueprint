@@ -325,9 +325,11 @@ arbitrary path sets) remain future marker-format work.
 2. **Cross-directory clusters** would need content-digest baselines over
    sorted per-file blob SHAs (still git-only, still shallow-safe) — a
    marker-format v2 with a `restamp`/`remap` migration. Cost is real; deferred.
-3. **PowerShell port of the slicer.** The gate-side changes (widened coverage,
-   context markers) are ported and at parity; `blueprint-slice.ps1` (slice,
-   scaffold, verify) is not yet written. Follows on acceptance of the design.
+3. ~~**PowerShell port of the slicer.**~~ **Resolved**: `blueprint-slice.ps1`
+   ships slice/scaffold/verify at **byte parity** with the bash oracle —
+   enforced by `tests/ps_parity_test.sh` in CI (12 diffed surfaces, exit codes
+   included). Windows-native path handling remains the community-verification
+   ask it always was.
 4. **Threshold defaults.** `max_files=400 / min_files=3` are defensible, not
    validated beyond pandas + fixtures. The pandas numbers suggest the default
    should perhaps be lower; more brownfield samples would settle it.
