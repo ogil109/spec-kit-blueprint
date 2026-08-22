@@ -29,6 +29,9 @@ provides:
     - name: speckit.blueprint-index.remap
       file: commands/speckit.blueprint-index.remap.md
       description: "Re-derive a section from current code and refresh its git baseline — resync the map after out-of-band code changes (run the check gate in CI to detect them)"
+    - name: speckit.blueprint-index.recover
+      file: commands/speckit.blueprint-index.recover.md
+      description: "Stage-2 architecture recovery: derive how the machine-detected subsystems relate — dependency edges and cross-cutting concerns — as evidence-anchored, oracle-validated relation markers"
 
   templates:
     - name: blueprint-template

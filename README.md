@@ -128,6 +128,7 @@ reviews the PR. The `kind` field exists so CI never has to guess which is which.
 | `speckit.blueprint-index.status` | Read-only dashboard: detailed / settled / context / unmanaged sections, drift, where each spec stands. |
 | `speckit.blueprint-index.distill` | Collapse a finished spec's section to a digest + pointer; stamp the slice's code baseline. |
 | `speckit.blueprint-index.remap` | Re-derive a section from current code + refresh its git baseline (resync after out-of-band changes). |
+| `speckit.blueprint-index.recover` | Stage-2 architecture recovery: an expert agent derives how the subsystems relate — dependency edges, layering, cycles, cross-cutting concerns — as evidence-anchored relation markers the gate validates. |
 
 Plus the script-level oracles the commands and CI share: `blueprint-state.sh check` (the
 tiered gate), `blueprint-state.sh restamp` (deterministic baseline refresh), and
@@ -165,6 +166,16 @@ the only lasting difference is the provenance marker.
 Re-runs against an existing map are **additive**: already-covered paths are subtracted,
 new code shows up as new proposed sections, and an existing section that outgrew
 `slice.max_files` surfaces as an advisory instead of being silently re-partitioned.
+**Stage 2 — the intelligence layer.** The deterministic partition is the *input* to a
+dedicated architecture-recovery agent (`recover`): expert judgment decides how the
+detected subsystems **relate** — `uses` edges, layering, cycles, and `crosscuts`
+concerns (which no directory cut can express) — recorded as
+`<!-- blueprint:relation from=… to=… kind=… evidence=… -->` markers. The split is
+strict: the *semantic truth* of an edge is the agent's call; everything **checkable**
+about it is the oracle's — `check` validates that both endpoints are managed sections
+and the evidence path exists in git, flagging `relation` / `relation-evidence` issues
+when recovered architecture decays. No evidence, no relation.
+
 Conformance is **machine-checked, not an honor system**: `blueprint-slice.sh verify`
 recomputes the partition and diffs it against the (section, marker) structure actually
 written in the map — an agent that merged, dropped, renamed, or invented a section

@@ -278,6 +278,42 @@ Machine-checked coexistence: a markerless detailed section is invisible to
 directories cannot be a code section (markers are tree/blob paths); it becomes
 a `context` or `detailed` section citing the doc — never bent markers.
 
+## Stage 2 — the intelligence layer (subsystem relations)
+
+The deterministic partition answers *what the subsystems are*; it cannot answer
+*how they relate* — direction, architectural significance, cross-cutting
+concerns. That is judgment, and the field's current results say precisely this
+split is right: SemRef (ICSE 2026) feeds deterministic recovery-tool output to
+an LLM refinement stage and reports large accuracy gains (MoJoFM +118%
+relative); ArchAgent (arXiv 2601.13007) grounds an LLM agent in static-analysis
+evidence, requires every relationship to "trace back to demonstrable
+dependencies," treats cross-cutting concerns as labeled patterns rather than
+forcing them into the tree, and reads the result through C4/DSM lenses;
+DeepWiki builds a structural model before any generation and keeps diagrams
+consistent with prose.
+
+`speckit.blueprint-index.recover` is that stage here — an
+architecture-recovery specialist whose process is: mechanical candidate
+derivation first (import/include scans, tallied with witnesses — the audit
+trail), then the architectural call (promote load-bearing edges, demote
+incidental touches, with demotions reported), a DSM pass (layering, cycles —
+the highest-value finding recovery can surface — and hub verdicts), and
+cross-cutting concerns as first-class nodes (`crosscuts` edges; a concern with
+no directory of its own becomes a kebab-case context section). Output is
+relation markers in a dedicated context section, one table + markers.
+
+The oracle owns the checkable half: `check` validates every relation's
+endpoints against the map's managed sections and its evidence path against
+git, emitting SOFT `relation` / `relation-evidence` issues whose remedy is the
+recovery agent in repair mode (re-anchor or remove, never rewrite). Exercised
+on pandas: 63 mechanical candidates → 17 promoted relations (including the two
+real cycles, `core ↔ io` and `core ↔ tseries`) → gate in sync, `verify`
+untouched; deleting an evidence file fires `relation-evidence` alongside
+`stale`, and restoring heals. This resolves the cross-cutting honest limit at
+the map level — concerns are now named, evidence-anchored, machine-validated
+nodes — while stamped baselines on concern nodes (content digests over
+arbitrary path sets) remain future marker-format work.
+
 ## Open questions (deliberately not resolved in this spike)
 
 1. **Cross-cutting concerns.** A directory partition cannot express `compat`

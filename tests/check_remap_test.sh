@@ -232,6 +232,48 @@ gate "${E[@]}"
 { echo "$OUT" | grep -q "UNMAPPED.*tests" && ! echo "$OUT" | grep -q "UNMAPPED.*infra"; }; \
   assert "config coverage.exclude overrides the defaults" $? "$OUT"
 
+# 16. stage-2 relations: the oracle validates the checkable half of an
+#     agent-authored edge — endpoints on the map, evidence in git.
+R9="$TMP/repo9"; mkdir -p "$R9/src/a" "$R9/src/b" "$R9/.specify"
+git -C "$R9" init -q; git -C "$R9" config user.email t@t; git -C "$R9" config user.name t
+printf 'import b\n' > "$R9/src/a/main.py"; printf 'x\n' > "$R9/src/b/lib.py"
+git -C "$R9" add -A; git -C "$R9" commit -qm init
+cat > "$R9/blueprint.md" <<'BPEOF'
+# BP
+## src/a
+<!-- blueprint:section state=code -->
+<!-- blueprint:code path=src/a sha=NONE -->
+## src/b
+<!-- blueprint:section state=code -->
+<!-- blueprint:code path=src/b sha=NONE -->
+## Architecture — subsystem relations
+<!-- blueprint:section state=context -->
+<!-- blueprint:relation from=src/a to=src/b kind=uses evidence=src/a/main.py -->
+BPEOF
+F=(--root "$R9" --blueprint "$R9/blueprint.md")
+bash "$ORACLE" restamp "${F[@]}" >/dev/null 2>&1
+gate "${F[@]}"; [ "$RC" = 0 ]; assert "valid relation (endpoints + evidence) is silent" $? "rc=$RC $OUT"
+
+# endpoint gone: point an edge at a section that isn't on the map
+printf '%s\n' '<!-- blueprint:relation from=src/a to=src/gone kind=uses evidence=src/a/main.py -->' >> "$R9/blueprint.md"
+gate "${F[@]}"
+{ echo "$OUT" | grep -q "RELATION.*src/a->src/gone" && [ "$RC" = 0 ]; }; \
+  assert "dangling relation endpoint -> SOFT relation issue" $? "rc=$RC $OUT"
+reljson="$(bash "$ORACLE" check --json "${F[@]}" 2>/dev/null)"
+echo "$reljson" | python3 -c "
+import json,sys
+u=[i for i in json.load(sys.stdin)['issues'] if i['type']=='relation']
+assert u and u[0]['target']=='src/a->src/gone' and 'recover' in u[0]['remedy']['run'], u
+" >/dev/null 2>&1; assert "relation issue JSON carries the recover remedy" $? "$reljson"
+
+# evidence gone: swap in an edge citing a file that left the tree
+grep -v 'to=src/gone' "$R9/blueprint.md" > "$R9/blueprint.md.tmp" && mv "$R9/blueprint.md.tmp" "$R9/blueprint.md"
+printf '%s\n' '<!-- blueprint:relation from=src/b to=src/a kind=uses evidence=src/b/removed.py -->' >> "$R9/blueprint.md"
+gate "${F[@]}"
+{ echo "$OUT" | grep -q "RELATION-EVIDENCE.*src/b->src/a" && [ "$RC" = 0 ]; }; \
+  assert "vanished evidence -> SOFT relation-evidence issue" $? "rc=$RC $OUT"
+gate --strict "${F[@]}"; [ "$RC" = 1 ]; assert "relation issues block under --strict" $? "rc=$RC"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
