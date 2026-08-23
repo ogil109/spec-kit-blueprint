@@ -117,5 +117,34 @@ D-numbers reference `specs/001-stale-logic-cleanup/research.md`.
 
 ## Outcomes
 
-Filled as dispositions execute (T002–T012): each D-row gains
-`→ shipped in <commit>` or `→ deferred: <reason>`.
+Every disposition above has executed on the cleanup branch:
+
+- **D1** (config validation at load) → shipped in `14642c5`;
+  `tests/config_validation_test.sh` added (6 asserts) + a parity case.
+- **D2** (fold structure conformance into `check`; remove `verify`) → shipped
+  in `90ca58c` (breaking). Suite deltas: slicer 40 asserts, e2e lifecycle and
+  parity suites converted from `verify` calls to `check` structure-issue
+  asserts; gate suite 34 asserts (no-blueprint check stays silent).
+- **D3** (lane parity: render accepts `distilled` facts blocks) → shipped in
+  `fbf3b1d` (engine, both ports) + `152289d` (distill/remap/init rewritten
+  onto emit-facts → render → restamp). e2e lifecycle 20 asserts (GAP-6 drill:
+  distilled digest + edges authored/repaired through facts); parity 15 cases
+  (distilled render byte-identical).
+- **D4** (dual-port byte parity) → kept; verification stays a diff
+  (`tests/ps_parity_test.sh`, 15 cases), semantic parity would be judgment.
+- **D5** (remove the `concern` directive) → shipped in `ef72e4e` (breaking);
+  migration error points at crosscuts sections; a parity fixture that had
+  silently degraded into error-parity was repaired in `152289d`.
+- **D6** (trim auto-detect to canonical + `docs/blueprint.md`) → shipped in
+  `37e4d37` (breaking).
+- **D7** (filesystem is the suite roster) → shipped in `589bd08`; CI iterates
+  `tests/*_test.sh`.
+- **D8** (remove the deterministic-onramp narrative) → shipped in `3096db2`;
+  still-current essence salvaged into README; `autonomous-harness.md` audited
+  (one stale command count fixed).
+- **Unfounded config-layering claim** (found during the zero-contradiction
+  pass) → removed in `a2c512a`.
+
+Full suites at completion: check/gate 34 · config validation 6 · e2e lifecycle
+20 · harness loop 5 · oracle 13 · portability lint 30 · slicer 40 · ps parity
+15 — all green, both ports.
