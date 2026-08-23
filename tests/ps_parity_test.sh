@@ -133,6 +133,13 @@ pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/facts
 diff -q "$M1" "$M2" >/dev/null
 if [ $? -eq 0 ]; then ok "partial repair merge byte-identical (edges preserved)"; else bad "partial repair parity" "$(diff "$M1" "$M2" | head -6)"; fi
 
+# 7. config validation parity: identical error output + exit code
+printf 'slice:\n  pin_dir:\n    - x\n  max_files: lots\n' > "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
+b="$(bash "$BS" slice --root "$R" --json 2>&1; echo "rc=$?")"
+p="$(pwsh -NoProfile "$PSSL" slice --root "$R" --json 2>&1; echo "rc=$?")"
+rm -f "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
+if [ "$b" = "$p" ]; then ok "config validation errors byte-identical (exit 2)"; else bad "config validation parity" "$(diff <(echo "$b") <(echo "$p") | head -6)"; fi
+
 echo
 echo "ps parity: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

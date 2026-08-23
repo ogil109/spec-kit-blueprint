@@ -51,6 +51,8 @@ else FMT=json; fi
 LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
 
 source "$LIB/common-root.sh"       # sets ROOT
+CFG="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml"
+source "$LIB/common-config.sh"     # validates the config (exits 2 on violations)
 # ── locate the blueprint doc ──────────────────────────────────────────────────
 # POSIX character classes only ([[:space:]], never the GNU whitespace shorthand):
 # GNU regex shorthands are not POSIX ERE — BSD sed (macOS) passes the line through

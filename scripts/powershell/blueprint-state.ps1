@@ -68,6 +68,11 @@ $specsDir = Join-Path $Root "specs"
 # NOTE: `exit` inside a dot-sourced module returns HERE (it does not terminate
 # the entry, unlike bash `source`); $LASTEXITCODE carries the module's code, so
 # each command-owning module is followed by an explicit termination gate.
+$Cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
+$ConfigInvalid = $false
+. "$PSScriptRoot/lib/Common-Config.ps1"   # validates the config
+if ($ConfigInvalid) { exit 2 }
+
 . "$PSScriptRoot/lib/Common-Git.ps1"
 . "$PSScriptRoot/lib/State-Frontier.ps1"
 . "$PSScriptRoot/lib/State-Check.ps1"
