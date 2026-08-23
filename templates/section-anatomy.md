@@ -1,5 +1,13 @@
 # Section anatomy — the one shape every settled section has
 
+**How this contract is enforced**: in the brownfield lanes (`init --from-code`,
+`recover`, `remap`) the agent does not write this prose by hand — it emits a
+**facts file** (role / facets / neighbors / notes; see the recover command) and
+`blueprint-slice.sh render` writes the prose *and* the relation markers from
+it, after machine-validating every anchor. This file defines what good facts
+contain and the shape the renderer produces; `distill` (spec-owned digests)
+still writes to this shape directly.
+
 This is the shared contract for the **prose lane**: every settled section of the
 blueprint has the same anatomy no matter which command wrote it (`init
 --from-code` recovering architecture from a brownfield repo, `remap` refreshing

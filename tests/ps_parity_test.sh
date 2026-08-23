@@ -101,6 +101,25 @@ PYEOF
   [ $? -eq 0 ] && ok "check --json (coverage + relations; semantically equal)" || bad "check --json (coverage + relations)" "$(diff <(echo "$b") <(echo "$p") | head -8)"
 fi
 
+# 6. render parity: same facts over identical fresh scaffolds -> byte-identical maps
+cat > "$TMP/facts.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role Application source tree.
+facet Entry | `src/loose.py` wires the modules. | src/loose.py
+neighbor uses | tests | exercised by the suite | src/loose.py
+concern build-config
+role Where build configuration lives.
+neighbor crosscuts | src | manifest read at build time | src/core/f1.py
+FEOF
+M1="$TMP/m1.md"; M2="$TMP/m2.md"; : > "$M1"; : > "$M2"
+bash "$BS" scaffold --root "$R" --blueprint "$M1" > "$M1"
+pwsh -NoProfile "$PSSL" scaffold --root "$R" --blueprint "$M2" > "$M2"
+b="$(bash "$BS" render --root "$R" --blueprint "$M1" --facts "$TMP/facts.txt" 2>&1; echo "rc=$?")"
+p="$(pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/facts.txt" 2>&1; echo "rc=$?")"
+{ [ "$(echo "$b" | tail -1)" = "$(echo "$p" | tail -1)" ] && diff -q "$M1" "$M2" >/dev/null; }
+if [ $? -eq 0 ]; then ok "render (prose + relations + concern) byte-identical"; else bad "render byte parity" "$(diff "$M1" "$M2" | head -6)"; fi
+
 echo
 echo "ps parity: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

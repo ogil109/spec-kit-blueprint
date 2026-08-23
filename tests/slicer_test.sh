@@ -249,6 +249,58 @@ assert "detailed (docs-seeded backlog) section is invisible to verify" $? ""
 bash "$ORACLE" next --json --root "$R2" --blueprint "$B2" 2>/dev/null | grep -q '"phase": "specify"'
 assert "detailed section turns next from idle into specify (backlog works)" $? ""
 
+# 16. render: one validated facts file writes prose AND relation markers —
+#     they come from the same source, so they cannot contradict.
+cat > "$TMP/facts.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role Application source.
+facet Entry | `src/a/f1.py` boots everything. | src/a/f1.py
+neighbor uses | newmod | consumes its helpers | src/a/f1.py
+section newmod
+role A new module.
+concern shared-config
+role Where configuration lives and who reads it.
+neighbor crosscuts | src | config read at import time | src/a/f2.py
+FEOF
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/facts.txt" >/dev/null 2>&1
+assert "render accepts validated facts (exit 0)" $? ""
+{ grep -q 'Application source. At a glance:' "$B2"   && grep -q '<!-- blueprint:relation from=src to=newmod kind=uses evidence=src/a/f1.py -->' "$B2"   && grep -q '<!-- blueprint:relation from=shared-config to=src kind=crosscuts evidence=src/a/f2.py -->' "$B2"   && grep -q '^## shared-config$' "$B2"   && grep -q -- '- `src` — Application source; \*\*code-owned\*\*' "$B2"; }
+assert "render writes prose + relations + concern + TOC from one facts source" $? "$(grep -n 'Application source' "$B2")"
+grep -q 'TODO(prose).*`docs`' "$B2"
+assert "sections absent from facts keep their placeholder (partial render)" $? ""
+
+# 17. render is idempotent
+cp "$B2" "$B2.r1"
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/facts.txt" >/dev/null 2>&1
+diff -q "$B2.r1" "$B2" >/dev/null; assert "re-render with same facts is byte-identical" $? "$(diff "$B2.r1" "$B2" | head -4)"
+rm -f "$B2.r1"
+
+# 18. render validation: every bad claim rejected, map untouched
+cat > "$TMP/badfacts.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role R.
+facet X | invented. | src/a/ghost.py
+neighbor uses | phantom | nope | src/a/f1.py
+neighbor uses | newmod | wrong side | newmod/n1.py
+neighbor flows | newmod | bad kind | src/a/f1.py
+FEOF
+cp "$B2" "$B2.before"
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/badfacts.txt" >/dev/null 2>&1; brc=$?
+{ [ "$brc" = 1 ] && diff -q "$B2.before" "$B2" >/dev/null; }
+assert "invalid facts -> exit 1, map untouched" $? "rc=$brc"
+n=$(bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/badfacts.txt" 2>&1 | grep -c '^  - ')
+[ "$n" = 4 ]; assert "all four invalid claims reported at once" $? "count=$n"
+rm -f "$B2.before"
+
+# 19. rendered relations satisfy the gate; concern invisible to verify
+bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+assert "rendered relations pass the gate's endpoint+evidence validation" $? ""
+bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+assert "rendered map still verify-conformant (concern/relations invisible)" $? ""
+
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

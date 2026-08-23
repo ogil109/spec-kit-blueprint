@@ -129,16 +129,20 @@ guaranteed by never letting you write structure at all:
    remedy flow for an `unmapped` gate issue. Same repo state + same config ⇒
    byte-identical output.
 
-2. **Your ONLY edit is replacing the `TODO(prose)` placeholders** (including the TOC
-   one-liners), following the **architecture-recovery procedure** in
-   `.specify/extensions/blueprint-index/templates/section-anatomy.md` — the shared
-   contract every settled section obeys (banner, role sentence, evidence-anchored
-   at-a-glance digest, closer; inventory → boundary-before-depth → write →
-   self-check). Anchors must resolve to paths under the section's own markers;
-   cross-references name *sections*, not files. Touch nothing else — no headings,
-   no markers, no banners, no section order. Two runs may word prose differently,
-   but they walk the same evidence in the same order, so the anchors converge —
-   and no oracle reads prose either way.
+2. **You never edit the map at all — you emit FACTS, the renderer writes.**
+   Perform the single recovery pass (`speckit.blueprint-index.recover`): walk
+   each section per the architecture-recovery procedure in
+   `templates/section-anatomy.md` (inventory → boundary-before-depth → write →
+   self-check) and emit one facts file — per section a `role`, evidence-anchored
+   `facet` bullets, and `neighbor` edges; plus any cross-cutting `concern`s.
+   Then run
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh render --facts <file>`
+   (or the PowerShell port): it machine-validates every claim (sections exist,
+   evidence tracked and under the right markers, endpoints managed — all
+   violations listed, nothing written) and replaces the `TODO(prose)`
+   placeholders, TOC one-liners, and the relations home from your facts. Prose
+   and relation markers come from the same source, so they cannot contradict;
+   two runs are compared by diffing facts, not wording.
 
 3. **Every tracked file is accounted for, nothing silently absent.** Run
    `blueprint-slice.sh slice --json` and echo its `excluded` and `root_files` lists
@@ -164,12 +168,9 @@ guaranteed by never letting you write structure at all:
    On failure, fix the structure (or the config, then re-derive) — never
    silence the oracles.
 
-6. **Stage 2 — recover the architecture.** With the sections settled and
-   verified, run the architecture-recovery specialist
-   (`speckit.blueprint-index.recover`): it derives how the subsystems relate —
-   dependency edges, layering, cycles, cross-cutting concerns — as
-   evidence-anchored relation markers that the `check` gate validates from
-   then on (`relation` / `relation-evidence` issues on decay).
+(Stage 2 is inside step 2: the recovery pass covers digests AND relations in
+one facts file — see `speckit.blueprint-index.recover` for the full procedure,
+including the DSM read: layering, cycles, hub verdicts.)
 
 ## Hybrid on-ramp (`--from-code` + docs): code decides structure, docs contribute
 

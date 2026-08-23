@@ -167,14 +167,16 @@ Re-runs against an existing map are **additive**: already-covered paths are subt
 new code shows up as new proposed sections, and an existing section that outgrew
 `slice.max_files` surfaces as an advisory instead of being silently re-partitioned.
 **Stage 2 — the intelligence layer.** The deterministic partition is the *input* to a
-dedicated architecture-recovery agent (`recover`): expert judgment decides how the
-detected subsystems **relate** — `uses` edges, layering, cycles, and `crosscuts`
-concerns (which no directory cut can express) — recorded as
-`<!-- blueprint:relation from=… to=… kind=… evidence=… -->` markers. The split is
-strict: the *semantic truth* of an edge is the agent's call; everything **checkable**
-about it is the oracle's — `check` validates that both endpoints are managed sections
-and the evidence path exists in git, flagging `relation` / `relation-evidence` issues
-when recovered architecture decays. No evidence, no relation.
+dedicated architecture-recovery agent (`recover`): expert judgment decides what each
+subsystem **is** and how they **relate** — `uses` edges, layering, cycles, and
+`crosscuts` concerns (which no directory cut can express). Its output is a **facts
+file**, and `blueprint-slice.sh render` writes both the digests and the
+`<!-- blueprint:relation … -->` markers from it after validating every claim
+(sections exist, evidence tracked and under the right markers, endpoints managed —
+violations are listed wholesale and nothing is written). The split is strict: the
+*semantic truth* of a fact is the agent's call; everything **checkable** about it is
+the machine's — at render time and forever after via `check`'s
+`relation`/`relation-evidence` decay issues. No evidence, no claim.
 
 Conformance is **machine-checked, not an honor system**: `blueprint-slice.sh verify`
 recomputes the partition and diffs it against the (section, marker) structure actually
@@ -233,12 +235,13 @@ specify extension add blueprint-index \
 /speckit.blueprint-index.init --from-code
 #    Under the hood, in order (all shipped, nothing to configure first):
 #      scaffold  → the map is MACHINE-WRITTEN: sections, markers, TOC, banners
-#      prose     → the agent's only edit: fill the TODO(prose) placeholders
-#                  per templates/section-anatomy.md
+#      recover   → ONE agent pass emits validated FACTS (role + digest facets +
+#                  relation edges + concerns, every claim evidence-anchored)
+#      render    → the machine writes the prose AND the relation markers from
+#                  those facts — they cannot contradict, and bad claims are
+#                  rejected wholesale before a byte lands
 #      restamp   → git baselines recorded on every section
-#      verify+check → structure conformance + coverage machine-checked
-#      recover   → the architecture agent derives subsystem relations
-#                  (edges, layering, cycles, cross-cutting concerns)
+#      verify+check → structure conformance + coverage + relations machine-checked
 
 # 3. Add the gate to CI — done. The map now defends itself.
 bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh check
@@ -305,13 +308,16 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
   the gate usable in real CI; the tradeoff is that out-of-band code changes are *surfaced
   and reconciled*, not hard-blocked (unless `--strict`). Whether this balance is right for
   a given team is exactly what real usage will tell us.
-- **Map structure is computed; map prose is agent-authored.** The brownfield on-ramp's
-  *section set* comes from the deterministic partitioner (`blueprint-slice.sh`) — two
+- **Map structure is computed; map content is rendered from validated facts.** The
+  brownfield on-ramp's *section set* comes from the deterministic partitioner — two
   independent `init --from-code` runs produce the same structure, and every human
-  override lives in checked-in config where it replays identically. What stays
-  agent-authored (and human-reviewed) is the *prose* inside each computed section and
-  the `distill` digests; the gate reads markers, never prose, so prose variation can't
-  move the gate. When the map feeds every spec, that authoring quality still matters.
+  override lives in checked-in config where it replays identically. The agent's
+  entire authored output is a **facts file** (roles, evidence-anchored digest facets,
+  relation edges); `render` machine-validates every claim and writes the prose and
+  relation markers from the same source, so they cannot contradict and two recovery
+  runs are compared by diffing facts, not wording. What remains genuinely
+  agent-judged — and human-reviewed — is *which* facts to assert; `distill` digests
+  stay directly authored against the same anatomy.
 - **Two known edges.** A `[NEEDS CLARIFICATION]` marker that a formatter has *wrapped
   across lines* is not detected (the scan is line-based), so a spec with an open question
   could advance a step. And **root-level loose files** (READMEs, manifests, a stray
