@@ -31,6 +31,12 @@ exist undiscovered.
   must include the full end-to-end exercise on two large real codebases
   (pandas plus one of comparable size), not pandas alone. The pending
   script-modularization change was merged before this feature starts.
+- Q: Is dual-port byte-level equivalence a fixed end-state principle, or may
+  the research reconsider it? → A: The research decides — the port-equivalence
+  contract is itself an inventory entry with an argued disposition (keep byte
+  parity / relax to semantic / other), and the conclusion ships. Whatever
+  contract results MUST remain machine-enforced in CI; only the level of
+  equivalence is on the table, never the enforcement.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -166,9 +172,12 @@ inventory file exists in the repository with a stated maintenance rule.
   changes are a defect.
 - **FR-006**: After cleanup, the full shipped documentation set MUST contain
   no claim that contradicts actual behavior.
-- **FR-007**: The equivalence between the two platform implementations MUST
-  be preserved through every cleanup change, verified by the existing
-  equivalence checks.
+- **FR-007**: The equivalence contract between the two platform
+  implementations is itself an inventory entry (per Clarifications): the
+  research argues its disposition, and the existing byte-level checks remain
+  binding unless and until that disposition reworks them. The resulting
+  contract — whatever level it sets — MUST be machine-enforced in continuous
+  integration; equivalence by convention is a defect.
 - **FR-008**: All existing acceptance suites MUST pass after each cleanup
   change; suite coverage may shrink only where a removed mechanism takes its
   own tests with it, and such shrinkage MUST be recorded in the inventory
@@ -236,6 +245,8 @@ whole codebase and treat this list as a floor, not the scope:
 - Command guidance written before the current authoring flow (hand-editing
   instructions that predate rendered content).
 - The same test-suite roster maintained by hand in three places.
+- The dual-port byte-equivalence contract itself (mandated as an inventory
+  entry by the Clarifications; the research argues keep/rework).
 
 ## Assumptions
 
