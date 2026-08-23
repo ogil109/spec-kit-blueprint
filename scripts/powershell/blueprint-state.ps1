@@ -1,11 +1,12 @@
 #!/usr/bin/env pwsh
-# blueprint-state — deterministic state oracle + coherence gate for the blueprint (PowerShell port).
-# Mirrors scripts/bash/blueprint-state.sh.
+# blueprint-state — deterministic state oracle + coherence gate (PowerShell port).
+# Mirrors scripts/bash/blueprint-state.sh at output parity; this entry only
+# parses arguments and dot-sources the lib/ modules in order — every piece of
+# behavior lives in exactly one file under scripts/powershell/lib/.
 #
 # Usage:
-#   blueprint-state.ps1 status
-#   blueprint-state.ps1 next [--json]
-#   [--root <dir>] [--blueprint <path>]
+#   blueprint-state.ps1 status|next|check|restamp
+#     [--json|--human] [--strict] [--root <dir>] [--blueprint <path>] [--path <p>]
 [CmdletBinding()]
 param(
   [Parameter(Position = 0)] [string]$Command = "status",
@@ -28,6 +29,7 @@ for ($i = 0; $i -lt $Rest.Count; $i++) {
 # Output format: explicit flag wins; else JSON when piped, human on a TTY (git/ls convention).
 if ($Json) { $Fmt = "json" } elseif ($Human) { $Fmt = "human" }
 elseif ([Environment]::UserInteractive -and -not [Console]::IsOutputRedirected) { $Fmt = "human" } else { $Fmt = "json" }
+
 
 # locate repo root
 if (-not $Root) {
@@ -60,251 +62,16 @@ if (-not $Blueprint -or -not (Test-Path $Blueprint)) {
   }
 }
 
+
 $specsDir = Join-Path $Root "specs"
 
-function Get-SpecPhase($dir) {
-  if (-not (Test-Path (Join-Path $dir "spec.md"))) { return "specify" }
-  if (Select-String -Path (Join-Path $dir "spec.md") -Pattern '\[NEEDS CLARIFICATION' -Quiet) { return "clarify" }
-  if (-not (Test-Path (Join-Path $dir "plan.md")))  { return "plan" }
-  if (-not (Test-Path (Join-Path $dir "tasks.md"))) { return "tasks" }
-  if (Select-String -Path (Join-Path $dir "tasks.md") -Pattern '^\s*-\s*\[ \]' -Quiet) { return "implement" }
-  return "built"
-}
-function Test-Distilled($slug) {
-  if (-not ($Blueprint -and (Test-Path $Blueprint))) { return $false }
-  return [bool](Select-String -Path $Blueprint -Pattern "specs/$slug" -Quiet)
-}
-
-# code-staleness support (mirrors the bash oracle): a code-owned section carries
-#   <!-- blueprint:code path=src/area sha=<git-sha> -->  recording the code baseline.
-function Test-Git    { git -C $Root rev-parse --git-dir 2>$null | Out-Null; return $LASTEXITCODE -eq 0 }
-function Get-CurSha($p) { $s = git -C $Root rev-parse --verify --quiet "HEAD:$p" 2>$null; if ($LASTEXITCODE -eq 0) { return $s.Trim() } else { return "" } }
-function Get-CodeMarkers {
-  if (-not ($Blueprint -and (Test-Path $Blueprint))) { return @() }
-  Select-String -Path $Blueprint -Pattern '<!-- blueprint:code path=(\S+) sha=(\S+) -->' -AllMatches |
-    ForEach-Object { $_.Matches } | ForEach-Object { [pscustomobject]@{ path = $_.Groups[1].Value; sha = $_.Groups[2].Value } }
-}
-# A context section may declare the paths it covers (docs trees etc.):
-#   <!-- blueprint:context path=docs -->
-# Context coverage has NO baseline and NO staleness (mirrors the bash oracle).
-function Get-ContextMarkers {
-  if (-not ($Blueprint -and (Test-Path $Blueprint))) { return @() }
-  Select-String -Path $Blueprint -Pattern '<!-- blueprint:context path=(\S+) -->' -AllMatches |
-    ForEach-Object { $_.Matches } | ForEach-Object { $_.Groups[1].Value }
-}
-# Coverage excludes: config coverage.exclude list, else defaults (hidden
-# top-level dirs; specs/, which is gated by distill drift instead). A pattern
-# without "/" matches the FIRST path component; with "/" it is a path prefix.
-function Get-CoverageExcludes {
-  $cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
-  $ex = @()
-  if (Test-Path $cfg) {
-    $inTop = $false; $inList = $false
-    foreach ($line in [System.IO.File]::ReadAllLines($cfg)) {
-      if ($line -match '^[^\s#]') { $inTop = ($line -match '^coverage:\s*$'); $inList = $false; continue }
-      if ($inTop -and $line -match '^\s+exclude:\s*$') { $inList = $true; continue }
-      if ($inTop -and $inList) {
-        if ($line -match '^\s+-\s+(.*)$') { $ex += ($Matches[1] -replace '\s+#.*$','' -replace '"','') }
-        elseif ($line -match '^\s*(#|$)') { } else { $inList = $false }
-      }
-    }
-  }
-  if ($ex.Count -gt 0) { return $ex } else { return @(".*", "specs") }
-}
-
-$inflight = @(); $drift = @(); $builtCount = 0
-if (Test-Path $specsDir) {
-  foreach ($dir in (Get-ChildItem -Path $specsDir -Directory)) {
-    $slug = $dir.Name
-    if ($Skip -contains $slug) { continue }   # parked/excluded slice
-    $phase = Get-SpecPhase $dir.FullName
-    if ($phase -ne "built") { $inflight += [pscustomobject]@{ slug = $slug; phase = $phase } }
-    else {
-      $builtCount++
-      # Distill drift = a BUILT slice not yet collapsed → distill is the slice's LAST
-      # step (after implement), not the moment spec.md appears. In-flight = advance.
-      if (-not (Test-Distilled $slug)) { $drift += $slug }
-    }
-  }
-}
-
-# section provenance: machine markers are authoritative; an unmarked ## heading is
-# UNMANAGED (external / not yet run through init) and counts as pending backlog.
-$detailedCount = 0; $settledCount = 0; $contextCount = 0; $unmanagedCount = 0
-if ($Blueprint -and (Test-Path $Blueprint)) {
-  $detailedCount = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=detailed').Count
-  $settledCount  = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=(distilled|code)').Count
-  $contextCount  = @(Select-String -Path $Blueprint -Pattern '<!-- blueprint:section state=context').Count
-  $s=$false; $m=$false; $x=$false
-  foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
-    if ($line -match '^## ') {
-      if ($s -and -not $m -and -not $x) { $unmanagedCount++ }
-      $h = $line.ToLower(); $x = ($h -match 'table of contents' -or $h -match 'how this' -or $h -match 'changelog')
-      $s = $true; $m = $false
-    } elseif ($line -match '<!-- blueprint:section') { $m = $true }
-  }
-  if ($s -and -not $m -and -not $x) { $unmanagedCount++ }
-}
-$backlogCount = $detailedCount + $unmanagedCount
-
-if ($Command -eq "check") {
-  # Tiered: HARD (drift, dangling) blocks; SOFT (stale, unstamped, unmanaged) is advisory
-  # unless --strict. Each issue carries a self-describing remedy + kind (see bash oracle).
-  $issues = @()
-  if ($unmanagedCount -gt 0) { $issues += [pscustomobject]@{ severity="soft"; type="unmanaged"; target=""; detail="$unmanagedCount section(s) not processed by the extension"; run="/speckit.blueprint-index.init"; kind="authored" } }
-  foreach ($s in $drift) { $issues += [pscustomobject]@{ severity="hard"; type="drift"; target=$s; detail="built spec not in the map"; run="/speckit.blueprint-index.distill $s"; kind="authored" } }
-  if (Test-Git) {
-    foreach ($m in (Get-CodeMarkers)) {
-      $cur = Get-CurSha $m.path
-      if (-not $cur)             { $issues += [pscustomobject]@{ severity="hard"; type="dangling"; target=$m.path; detail="map points at code that no longer exists"; run="/speckit.blueprint-index.remap $($m.path)"; kind="authored" } }
-      elseif ($m.sha -eq "NONE") { $issues += [pscustomobject]@{ severity="soft"; type="unstamped"; target=$m.path; detail="no git baseline recorded yet"; run="blueprint-state.ps1 restamp --path $($m.path)"; kind="deterministic" } }
-      # abbreviate like git: a full 40-char pair is unreadable in a CI log line
-      elseif ($cur -ne $m.sha)   { $short = { param($h) if ($h.Length -gt 8) { $h.Substring(0,8) } else { $h } }; $issues += [pscustomobject]@{ severity="soft"; type="stale"; target=$m.path; detail="code changed since mapped ($(& $short $m.sha) -> $(& $short $cur))"; run="/speckit.blueprint-index.remap $($m.path)"; kind="authored" } }
-    }
-    # unmapped code (coverage): every tracked file must be covered by a code
-    # section, a context section, or an exclude pattern. The scan spans ALL
-    # top-level directories — deriving scan roots from already-mapped paths (as
-    # before) let a directory the on-ramp never touched stay invisible forever.
-    # Root-level loose files are outside coverage by design; the blueprint doc
-    # itself is always excluded. Reported at the shallowest uncovered directory.
-    # Only runs when a blueprint exists — with no map at all, the actionable
-    # signal is "run init", not one unmapped issue per directory.
-    if ($Blueprint -and (Test-Path $Blueprint)) {
-    $coveredPaths = @(Get-CodeMarkers | ForEach-Object { $_.path }) + @(Get-ContextMarkers)
-    $excludes = @(Get-CoverageExcludes)
-    $bpRel = if ($Blueprint) { $Blueprint.Replace("$Root/","").Replace("$Root\","") } else { "" }
-    $uncovered = @()
-    foreach ($f in (git -C $Root ls-files 2>$null)) {
-      if ($f -notmatch '/') { continue }                                                    # root-level loose file
-      if ($f -eq $bpRel) { continue }                                                       # the map itself
-      $first = ($f -split '/')[0]
-      $skip = $false
-      foreach ($g in $excludes) {
-        if ($g -match '/') { if ($f -like $g -or $f -like "$g/*") { $skip = $true; break } }
-        else               { if ($first -like $g)                 { $skip = $true; break } }
-      }
-      if ($skip) { continue }
-      if ($coveredPaths | Where-Object { $f -eq $_ -or $f.StartsWith("$_/") }) { continue }  # covered file
-      $d = ($f -replace '/[^/]+$','')
-      if ($coveredPaths | Where-Object { $_ -eq $d -or $_.StartsWith("$d/") }) { continue }  # covered-parent dir
-      $uncovered += $d
-    }
-    # LC_ALL=C parity: Sort-Object is culture-aware; issue order must match bash
-    $uSet = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($x in $uncovered) { [void]$uSet.Add([string]$x) }
-    $uArr = [string[]]::new($uSet.Count); $uSet.CopyTo($uArr)
-    [Array]::Sort($uArr, [System.StringComparer]::Ordinal)
-    $uncovered = $uArr
-    foreach ($d in $uncovered) {
-      if ($uncovered | Where-Object { $_ -ne $d -and $d.StartsWith("$_/") }) { continue }   # keep shallowest
-      $issues += [pscustomobject]@{ severity="soft"; type="unmapped"; target=$d; detail="tracked code no section maps"; run="/speckit.blueprint-index.init --from-code $d"; kind="authored" }
-    }
-    }
-  } else { [Console]::Error.WriteLine("note: not a git repository — code-staleness/coverage checks skipped") }
-
-  # relations (stage-2 architecture): validate the checkable half of every
-  # agent-authored edge — endpoints are managed sections, evidence exists in git
-  # (mirrors the bash oracle). SOFT; remedy re-runs the recovery agent.
-  if ($Blueprint -and (Test-Path $Blueprint)) {
-    $secIds = @(); $heading = ""
-    foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
-      if ($line -match '^## ') { $heading = ($line -replace '^##\s+','' -replace ' \(remainder\)$','') }
-      elseif ($line -match '<!-- blueprint:section') { if ($heading) { $secIds += $heading }; $heading = "" }
-    }
-    $rels = Select-String -Path $Blueprint -Pattern '<!-- blueprint:relation from=(\S+) to=(\S+) kind=(\S+) evidence=(\S+) -->' -AllMatches |
-      ForEach-Object { $_.Matches } | ForEach-Object { [pscustomobject]@{ from=$_.Groups[1].Value; to=$_.Groups[2].Value; ev=$_.Groups[4].Value } }
-    foreach ($r in $rels) {
-      foreach ($ep in @($r.from, $r.to)) {
-        if ($secIds -notcontains $ep) { $issues += [pscustomobject]@{ severity="soft"; type="relation"; target="$($r.from)->$($r.to)"; detail="relation endpoint not on the map: $ep"; run="/speckit.blueprint-index.recover"; kind="authored" } }
-      }
-      $evPath = $r.ev.Split("#")[0]
-      $evPat = if ($r.ev.Contains("#")) { $r.ev.Substring($r.ev.IndexOf("#") + 1) } else { "" }
-      if (Test-Git) {
-        if (-not (Get-CurSha $evPath)) { $issues += [pscustomobject]@{ severity="soft"; type="relation-evidence"; target="$($r.from)->$($r.to)"; detail="relation evidence path gone: $evPath"; run="/speckit.blueprint-index.recover"; kind="authored" } }
-        else {
-          if ($evPat -ne "") {
-            $content = git -C $Root show "HEAD:$evPath" 2>$null
-            $hit = $false
-            foreach ($cl in @($content)) { if (([string]$cl).Contains($evPat)) { $hit = $true; break } }
-            if (-not $hit) { $issues += [pscustomobject]@{ severity="soft"; type="relation-evidence"; target="$($r.from)->$($r.to)"; detail="evidence no longer demonstrates the edge: '$evPat' not in $evPath"; run="/speckit.blueprint-index.recover"; kind="authored" } }
-          }
-        }
-      }
-    }
-  }
-
-  $hardN = @($issues | Where-Object { $_.severity -eq "hard" }).Count
-  $softN = @($issues | Where-Object { $_.severity -eq "soft" }).Count
-  $inSync = ($issues.Count -eq 0)
-  $rc = 0; if ($hardN -gt 0 -or ($Strict -and $softN -gt 0)) { $rc = 1 }
-  $rel = if ($Blueprint) { $Blueprint.Replace("$Root/","").Replace("$Root\","") } else { "" }
-
-  if ($Fmt -eq "json") {
-    $obj = [ordered]@{ blueprint_schema="1"; command="check"; blueprint=$rel; in_sync=$inSync; blocking=$hardN; advisory=$softN; strict=$Strict;
-      issues=@($issues | ForEach-Object { [ordered]@{ severity=$_.severity; type=$_.type; target=$_.target; detail=$_.detail; remedy=[ordered]@{ run=$_.run; kind=$_.kind } } }) }
-    Write-Output ($obj | ConvertTo-Json -Depth 6 -Compress)
-    exit $rc
-  }
-  if ($inSync) { Write-Output "blueprint in sync"; exit 0 }
-  if ($hardN -gt 0) { Write-Output "HARD - the map contradicts reality (blocks merge):"; $issues | Where-Object { $_.severity -eq "hard" } | ForEach-Object { Write-Output ("  {0} {1} {2}   -> {3}" -f $_.type.ToUpper(), $_.target, $_.detail, $_.run) } }
-  if ($softN -gt 0) { if ($hardN -gt 0) { Write-Output "" }; Write-Output "SOFT - the map may be behind (advisory):"; $issues | Where-Object { $_.severity -eq "soft" } | ForEach-Object { Write-Output ("  {0} {1} {2}   -> {3}" -f $_.type.ToUpper(), $_.target, $_.detail, $_.run) } }
-  Write-Output ""; Write-Output "$hardN blocking, $softN advisory"
-  exit $rc
-}
-
-if ($Command -eq "restamp") {
-  if (-not (Test-Git)) { Write-Output "not a git repository — cannot restamp"; exit 1 }
-  if (-not ($Blueprint -and (Test-Path $Blueprint))) { Write-Output "no blueprint"; exit 1 }
-  $text = Get-Content -Raw $Blueprint; $updated = 0
-  foreach ($m in (Get-CodeMarkers)) {
-    if ($PathFilter -and $PathFilter -ne $m.path) { continue }
-    $cur = Get-CurSha $m.path
-    if (-not $cur) { Write-Output "skip (missing in git): $($m.path)"; continue }
-    $old = "<!-- blueprint:code path=$($m.path) sha=$($m.sha) -->"
-    $new = "<!-- blueprint:code path=$($m.path) sha=$cur -->"
-    $text = $text.Replace($old, $new); Write-Output "stamped $($m.path) -> $cur"; $updated++
-  }
-  Set-Content -NoNewline -Path $Blueprint -Value $text
-  Write-Output "restamped $updated marker(s)"; exit 0
-}
-
-$nextPhase = "done"; $nextSlug = ""; $reason = "backlog empty — nothing in specs/, nothing in flight"
-if ($drift.Count -gt 0) {
-  $nextPhase = "distill"; $nextSlug = $drift[0]; $reason = "spec exists but blueprint still holds its detail"
-} elseif ($inflight.Count -gt 0) {
-  $nextPhase = $inflight[0].phase; $nextSlug = $inflight[0].slug; $reason = "in-flight slice; next build phase by artifact frontier"
-} elseif (($Blueprint -and (Test-Path $Blueprint)) -and $detailedCount -eq 0 -and $settledCount -eq 0 -and $unmanagedCount -gt 0) {
-  $nextPhase = "init"; $reason = "blueprint not yet processed by the extension — run /speckit.blueprint-index.init ($unmanagedCount unmanaged section(s))"
-} elseif (($Blueprint -and (Test-Path $Blueprint)) -and $backlogCount -gt 0) {
-  $nextPhase = "specify"; $reason = "no in-flight work; specify the next detailed subsystem from the blueprint"
-} elseif (($Blueprint -and (Test-Path $Blueprint)) -and $settledCount -gt 0) {
-  $reason = "all sections settled (owned by a spec or by code) — no pending design (run /speckit.specify to start a slice, then distill it)"
-} elseif ($Blueprint -and (Test-Path $Blueprint)) {
-  $nextPhase = "specify"; $reason = "blueprint has no subsystem sections yet — add some, or run /speckit.blueprint-index.init"
-}
-$hasNext = ($nextPhase -ne "done")
-
-if ($Command -eq "next") {
-  if ($Json) {
-    $rel = if ($Blueprint) { $Blueprint.Replace("$Root/", "").Replace("$Root\", "") } else { "" }
-    '{{"has_next": {0}, "phase": "{1}", "slug": "{2}", "reason": "{3}", "blueprint": "{4}"}}' -f `
-      $hasNext.ToString().ToLower(), $nextPhase, $nextSlug, $reason, $rel
-  } else {
-    "next: $nextPhase $(if($nextSlug){"($nextSlug)"}) — $reason"
-  }
-  exit 0
-}
-
-Write-Output "Blueprint waterfall — state"
-Write-Output "  root:      $Root"
-Write-Output "  blueprint: $(if($Blueprint){$Blueprint}else{'<none — run blueprint.init>'}) ($builtCount built, $($inflight.Count) in-flight)"
-if ($Blueprint -and (Test-Path $Blueprint)) { Write-Output "  sections:  $detailedCount detailed, $settledCount settled, $contextCount context, $unmanagedCount unmanaged (not yet processed by init)" }
-Write-Output ""
-Write-Output "In-flight (spec exists, build not complete):"
-if ($inflight.Count -eq 0) { Write-Output "  (none)" } else { $inflight | ForEach-Object { Write-Output "  - $($_.slug)  → next: $($_.phase)" } }
-Write-Output ""
-Write-Output "Distill drift (spec exists, blueprint not yet collapsed):"
-if ($drift.Count -eq 0) { Write-Output "  (none — blueprint in sync)" } else { $drift | ForEach-Object { Write-Output "  - $_  → /speckit.blueprint-index.distill $_" } }
-Write-Output ""
-Write-Output "Next action: $nextPhase $(if($nextSlug){"($nextSlug)"})"
-Write-Output "  ($reason)"
+# NOTE: `exit` inside a dot-sourced module returns HERE (it does not terminate
+# the entry, unlike bash `source`); $LASTEXITCODE carries the module's code, so
+# each command-owning module is followed by an explicit termination gate.
+. "$PSScriptRoot/lib/Common-Git.ps1"
+. "$PSScriptRoot/lib/State-Frontier.ps1"
+. "$PSScriptRoot/lib/State-Check.ps1"
+if ($Command -eq "check") { exit $LASTEXITCODE }
+. "$PSScriptRoot/lib/State-Restamp.ps1"
+if ($Command -eq "restamp") { exit $LASTEXITCODE }
+. "$PSScriptRoot/lib/State-Output.ps1"

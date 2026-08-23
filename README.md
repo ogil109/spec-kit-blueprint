@@ -355,8 +355,9 @@ friction (false positives/negatives on a real repo) is especially welcome.
 
 ## Contributing
 
-Contributions welcome — this is a community Spec Kit extension. The oracle/gate is a
-single Bash script with **no dependencies beyond bash + git**, so the tests run anywhere:
+Contributions welcome — this is a community Spec Kit extension. The oracles are
+plain bash + git (PowerShell ports at byte parity), organized as thin entry
+scripts over single-responsibility `lib/` modules, so the tests run anywhere:
 
 ```bash
 bash tests/oracle_test.sh            # state frontier, provenance, context

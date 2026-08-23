@@ -5,9 +5,22 @@ Thanks for your interest. This repo is **Blueprint**, a community
 
 ## Running the tests
 
-The oracle/gate is a single Bash script with **no dependencies beyond bash + git**
-(`python3` is only used to validate JSON in one test). All suites are deterministic and
-run anywhere:
+The oracles are plain Bash (with PowerShell ports at byte parity) and depend on
+**nothing beyond bash + git** (`python3` is only used to validate JSON in tests).
+Each entry script (`blueprint-state.sh`, `blueprint-slice.sh`) only parses
+arguments and sequences single-responsibility modules from `scripts/bash/lib/`
+(`scripts/powershell/lib/` mirrors them 1:1); every behavior lives in exactly
+one lib file, named for its job, with its contract in the header. Two
+non-obvious rules the layout depends on:
+
+- **bash**: `source` returns the status of a file's *last command* — every lib
+  file therefore ends with an inert `:` so a legitimately-failing final test
+  can't kill the entry under `set -e`.
+- **PowerShell**: `exit` inside a dot-sourced module does **not** terminate the
+  entry (unlike bash) — the entries gate each command-owning module with
+  `if ($Command -eq …) { exit $LASTEXITCODE }`.
+
+All suites are deterministic and run anywhere:
 
 ```bash
 bash tests/oracle_test.sh            # state frontier, provenance, context
