@@ -287,6 +287,24 @@ gate "${F[@]}"
 { echo "$OUT" | grep -q "RELATION-EVIDENCE.*'import_b' not in src/a/main.py" && [ "$RC" = 0 ]; }
 assert "file kept, pattern gone -> semantic rot flagged" $? "rc=$RC $OUT"
 
+# ── explicit --blueprint is authoritative (no silent fallback) ────────────────
+# T012 field find: an explicit flag naming a missing file used to fall back to
+# auto-detect, silently gating a DIFFERENT map than the one named.
+# plant a canonical map an old-style fallback WOULD find (it carries the rotted
+# relation, so falling back is detectable in the issue list)
+mkdir -p "$R9/.specify/memory"; cp "$R9/blueprint.md" "$R9/.specify/memory/blueprint.md"
+out="$(bash "$ORACLE" check --json --root "$R9" --blueprint "$R9/nope.md" 2>&1 >/dev/null)"
+echo "$out" | grep -q "warning: --blueprint .*nope.md.* not found"
+assert "explicit missing --blueprint warns instead of silently falling back" $? "$out"
+bash "$ORACLE" check --json --root "$R9" --blueprint "$R9/nope.md" 2>/dev/null | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+bad=[i for i in d['issues'] if i['type'] in ('stale','structure','relation','relation-evidence')]
+assert not bad, bad
+" >/dev/null 2>&1
+assert "explicit missing --blueprint behaves as no-blueprint (not the canonical map)" $? ""
+rm -rf "$R9/.specify/memory"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

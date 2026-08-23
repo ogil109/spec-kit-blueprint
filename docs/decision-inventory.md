@@ -51,6 +51,7 @@ D-numbers reference `specs/001-stale-logic-cleanup/research.md`.
 | Output convention (JSON when piped, human on TTY) | git/porcelain convention for machine-first consumers | live | keep |
 | US (`\x1f`) record separator | Tab-IFS field-collapse bug with empty targets | live | keep |
 | Blueprint resolver warns on configured-but-missing path | Silent-fallback bug class from field findings | live | keep |
+| Explicit `--blueprint` never falls back | T012 dual-repo e2e find: a flag naming a missing file silently auto-detected a DIFFERENT map (and made fresh-scaffold-beside-existing-map impossible) | live | keep (fixed during cleanup; both entries, both ports) |
 | Config-path resolver `|| true` guard | No-`path:`-key crash fix | live | keep |
 
 ## Partitioner: `blueprint-slice.sh` / `.ps1`
