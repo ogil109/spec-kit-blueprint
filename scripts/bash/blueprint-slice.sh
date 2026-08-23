@@ -59,7 +59,7 @@ if [ -z "$BLUEPRINT" ] && [ -f "$CFG" ]; then
 fi
 if [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; then
   # Canonical location first (matches the config default); docs/ candidates are legacy homes.
-  for cand in .specify/memory/blueprint.md docs/blueprint.md docs/overview.md; do
+  for cand in .specify/memory/blueprint.md docs/blueprint.md; do
     [ -f "$ROOT/$cand" ] && BLUEPRINT="$ROOT/$cand" && break
   done
 fi

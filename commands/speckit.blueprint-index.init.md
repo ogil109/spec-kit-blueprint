@@ -21,7 +21,7 @@ $ARGUMENTS
 
 `$ARGUMENTS` selects the **on-ramp** (all idempotent):
 
-- **A doc path** (`docs/overview.md`, `docs/master-spec.md`) — *greenfield / formalize*:
+- **A doc path** (`docs/master-spec.md`, `docs/design.md`) — *greenfield / formalize*:
   use it as the blueprint and stamp/normalize every section. Ideal for an existing
   master doc that already half-follows the pattern.
 - **`--from-code`** (optionally scoped: `--from-code src/<area>`) — *brownfield*:
@@ -45,8 +45,7 @@ $ARGUMENTS
 1. Repo root = nearest ancestor with `.specify/`.
 2. `BLUEPRINT` = `blueprint-config.yml` → `blueprint.path`, else the doc path in
    `$ARGUMENTS`, else auto-detect (the canonical `.specify/memory/blueprint.md` first,
-   then `docs/blueprint.md`, `docs/overview.md`), else create from the template at the
-   config path.
+   then `docs/blueprint.md`), else create from the template at the config path.
    If a doc path was given, that doc **is** the blueprint (normalize it in place); do
    not silently create a second one.
 3. Template: `.specify/extensions/blueprint-index/templates/blueprint-template.md`.

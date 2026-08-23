@@ -81,7 +81,7 @@ if (-not $Blueprint -and (Test-Path $Cfg)) {
   }
 }
 if (-not $Blueprint -or -not (Test-Path $Blueprint)) {
-  foreach ($c in @(".specify/memory/blueprint.md", "docs/blueprint.md", "docs/overview.md")) {
+  foreach ($c in @(".specify/memory/blueprint.md", "docs/blueprint.md")) {
     if (Test-Path (Join-Path $Root $c)) { $Blueprint = Join-Path $Root $c; break }
   }
 }
