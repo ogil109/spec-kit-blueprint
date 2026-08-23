@@ -104,14 +104,16 @@ d=json.load(sys.stdin)
 assert d['in_sync'] is True, d['issues']
 " >/dev/null 2>&1; assert "partition-generated map passes check clean (full coverage)" $? "$cj"
 
-# 5b. verify: a map generated from the partition is structure-conformant
-bash "$SLICER" verify "${A[@]}" --blueprint "$BP" >/dev/null 2>&1
-assert "verify passes on a partition-generated map (exit 0)" $? ""
+# 5b. the gate's structure check: a partition-generated map is conformant
+bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1
+assert "no structure issues on a partition-generated map" $? ""
 
-# 5c. verify catches an agent 'merging' sections: move a marker under another
-#     heading -> the pair shows as missing from its section AND unexpected in
-#     the other, exit 1. Structure conformance is machine-checked, not prompt
-#     discipline.
+# 5c. the structure check catches a 'merge': a marker moved under another
+#     computed heading is flagged extra there — the class coverage cannot see
+#     because the files stay covered.
 cp "$BP" "$BP.orig"
 python3 - "$BP" <<'PYEOF'
 import re, sys
@@ -122,14 +124,12 @@ t = t.replace(m.group(0), '')
 t = t.replace('<!-- blueprint:code path=infra', m.group(1) + '\n<!-- blueprint:code path=infra')
 open(p, 'w').write(t)
 PYEOF
-vj="$(bash "$SLICER" verify "${A[@]}" --blueprint "$BP" --json 2>/dev/null)"; vrc=$?
-{ [ "$vrc" = 1 ] && echo "$vj" | python3 -c "
+vj="$(bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null)"
+echo "$vj" | python3 -c "
 import json,sys
-d=json.load(sys.stdin)
-assert d['structure_ok'] is False
-assert {'section':'tests','kind':'code','marker':'tests'} in d['missing'], d['missing']
-assert {'section':'infra','kind':'code','marker':'tests'} in d['unexpected'], d['unexpected']
-" >/dev/null 2>&1; }; assert "verify flags a merged section as missing+unexpected (exit 1)" $? "rc=$vrc $vj"
+s=[i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+assert any(i['target']=='infra' and 'tests' in i['detail'] for i in s), s
+" >/dev/null 2>&1; assert "structure issue: moved marker flagged under its new section" $? "$vj"
 mv "$BP.orig" "$BP"
 
 # 6. the blind spot stays closed: a NEW top-level dir surfaces immediately
@@ -181,29 +181,33 @@ assert S.get('src/core')=='fits'
 " >/dev/null 2>&1; assert "ancestors split down to reach a nested pin" $? "$j10"
 rm -f "$R/.specify/extensions/blueprint-index/blueprint-config.yml"
 
-# 11. verify also surfaces structure DRIFT: newtop (added in test 6) is computed
-#     but absent from the map -> exit 1 with a missing pair.
-vj2="$(bash "$SLICER" verify "${A[@]}" --blueprint "$BP" --json 2>/dev/null)"; vrc2=$?
-{ [ "$vrc2" = 1 ] && echo "$vj2" | python3 -c "
+# 11. a wholly-missing section is coverage's job, not structure's: newtop shows
+#     as unmapped (test 6) with NO structure issue (its heading is absent, so
+#     the intersection-domain diff stays silent — no double flagging).
+vj2="$(bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null)"
+echo "$vj2" | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
-assert {'section':'newtop','kind':'code','marker':'newtop'} in d['missing'], d
-assert not d['unexpected'], d['unexpected']
-" >/dev/null 2>&1; }; assert "verify surfaces structure drift (new dir missing from map)" $? "rc=$vrc2 $vj2"
+assert [i for i in d['issues'] if i['type']=='unmapped' and i['target']=='newtop']
+assert not [i for i in d['issues'] if i['type']=='structure'], d
+" >/dev/null 2>&1; assert "missing section -> unmapped only, no structure double-flag" $? "$vj2"
 
 # 12. spec-owned markers are outside the slicer's jurisdiction: a distilled
-#     section owning newtop makes verify pass again (its paths are subtracted
-#     from the recompute and its markers ignored in the diff).
+#     section owning newtop keeps the structure check silent (its paths are
+#     subtracted from the recompute and its markers ignored in the diff).
 cat >> "$BP" <<'EOF'
 ## Newtop Feature
 <!-- blueprint:section state=distilled owner=specs/001-newtop -->
 <!-- blueprint:code path=newtop sha=NONE -->
 EOF
-bash "$SLICER" verify "${A[@]}" --blueprint "$BP" >/dev/null 2>&1
-assert "distilled-owned markers are ignored by verify (exit 0)" $? ""
+bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1
+assert "distilled-owned markers are ignored by the structure check" $? ""
 
 # 13. scaffold: the map skeleton is machine-written — byte-identical runs, the
-#     redirect-creates-empty-file edge included, and verify passes with the
+#     redirect-creates-empty-file edge included, and the gate passes with the
 #     TODO(prose) placeholders untouched (prose is provably outside the oracles).
 R2="$TMP/scaf"; mkdir -p "$R2/.specify/memory" "$R2/src/a" "$R2/src/b" "$R2/docs"
 git -C "$R2" init -q; git -C "$R2" config user.email t@t; git -C "$R2" config user.name t
@@ -219,9 +223,8 @@ assert "scaffold is byte-identical (empty-redirect edge included)" $? ""
 grep -q '^# .* Blueprint$' "$B2" && grep -q '## Table of Contents' "$B2" && grep -q 'TODO(prose)' "$B2"
 assert "scaffold emits the full template skeleton (title, TOC, placeholders)" $? "$(head -3 "$B2")"
 bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" >/dev/null 2>&1
-bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1 \
-  && bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" >/dev/null 2>&1
-assert "scaffolded map passes verify + gate with placeholders untouched" $? ""
+bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+assert "scaffolded map passes the gate with placeholders untouched" $? ""
 
 # 14. scaffold is additive against an existing map: only the missing blocks, no header
 mkdir -p "$R2/newmod"; for i in 1 2 3; do printf 'x\n' > "$R2/newmod/n$i.py"; done
@@ -232,20 +235,26 @@ add="$(bash "$SLICER" scaffold --root "$R2" --blueprint "$B2")"
 assert "scaffold against an existing map emits only the missing section" $? "$add"
 printf '%s\n' "$add" >> "$B2"
 bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" --path newmod >/dev/null 2>&1
-bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
+bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1
 assert "appended scaffold block restores full conformance" $? ""
 
 # 15. hybrid on-ramp coexistence: a markerless DETAILED section (backlog seeded
 #     from docs) lives alongside the computed code sections without disturbing
-#     verify (no markers -> outside slicer jurisdiction) while the oracle counts
+#     the structure check (no markers -> outside slicer jurisdiction) while the oracle counts
 #     it as backlog (next: specify instead of idle).
 cat >> "$B2" <<'EOF'
 ## Planned: streaming ingestion
 <!-- blueprint:section state=detailed -->
 Design detail from the architecture doc — unbuilt; a future spec formalizes it.
 EOF
-bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
-assert "detailed (docs-seeded backlog) section is invisible to verify" $? ""
+bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1
+assert "detailed (docs-seeded backlog) section is invisible to the structure check" $? ""
 bash "$ORACLE" next --json --root "$R2" --blueprint "$B2" 2>/dev/null | grep -q '"phase": "specify"'
 assert "detailed section turns next from idle into specify (backlog works)" $? ""
 
@@ -318,12 +327,15 @@ n=$(bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/badfacts.
 [ "$n" = 4 ]; assert "all four invalid claims reported at once" $? "count=$n"
 rm -f "$B2.before"
 
-# 19. rendered relations satisfy the gate; concern invisible to verify
+# 19. rendered relations satisfy the gate; relations home invisible to the structure check
 bash "$ORACLE" restamp --root "$R2" --blueprint "$B2" >/dev/null 2>&1
 bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" >/dev/null 2>&1
 assert "rendered relations pass the gate's endpoint+evidence validation" $? ""
-bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
-assert "rendered map still verify-conformant (concern/relations invisible)" $? ""
+bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1
+assert "rendered map has no structure issues (relations home invisible)" $? ""
 
 # 20. per-block edge authority is INTERNAL: repairing one section preserves
 #     every other section's edges automatically — no caller-side rule.

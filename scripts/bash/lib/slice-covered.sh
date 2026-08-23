@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # lib/slice-covered.sh — what the partition must subtract: the map's parsed
-# structure for verify (DOCPAIRS), the covered-path set per command mode, and
+# structure when the gate's structure check runs (DOCPAIRS; STRUCT=1), the
+# covered-path set per command mode, and
 # the HOLES that force ancestors to descend so no emitted marker can span
 # covered territory. Sets: DOCPAIRS, covered[], BP_REL, HOLES.
-# ── verify: parse the map's actual structure (state, heading, kind, marker) ───
+# ── structure mode: parse the map's actual structure (state, heading, kind, marker)
 # Headings are normalized (strip "## ", strip a " (remainder)" suffix) so the
 # expected heading for a slicer-owned section is exactly its path.
 DOCPAIRS=""
-if [ "$CMD" = "verify" ]; then
-  { [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; } || { echo "verify: no blueprint found" >&2; exit 1; }
+if [ "${STRUCT:-0}" = "1" ]; then
+  { [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; } || { echo "structure check: no blueprint found" >&2; exit 1; }
   DOCPAIRS="$(awk -v US="$US" '
     /^## / { h = $0; sub(/^##[[:space:]]+/, "", h); sub(/ \(remainder\)$/, "", h); heading = h; state = ""; next }
     /<!-- blueprint:section state=/ { s = $0; sub(/.*state=/, "", s); sub(/[[:space:]].*/, "", s); state = s; next }
@@ -18,11 +19,11 @@ if [ "$CMD" = "verify" ]; then
 fi
 
 # ── existing coverage (markers are the record; subtracted unless --all) ───────
-# verify subtracts ONLY spec-owned markers (a distilled/detailed section's
+# structure mode subtracts ONLY spec-owned markers (a distilled/detailed section's
 # implementation footprint) and recomputes everything else, so the diff judges
 # exactly the slicer-owned structure.
 covered=()
-if [ "$CMD" = "verify" ]; then
+if [ "${STRUCT:-0}" = "1" ]; then
   while IFS= read -r p; do [ -n "$p" ] && covered+=("$p"); done < <(
     printf '%s\n' "$DOCPAIRS" \
       | awk -F"$US" '($1=="distilled" || $1=="detailed") && $3=="code" { print $4 }' \

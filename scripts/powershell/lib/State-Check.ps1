@@ -87,6 +87,25 @@ if ($Command -eq "check") {
     }
   }
 
+  # structure (decision D2, bash parity): intersection-domain marker-set diff
+  if ($Blueprint -and (Test-Path $Blueprint) -and $Struct -and $Part) {
+    $comp = [System.Collections.Generic.HashSet[string]]::new()
+    $chead = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($s in $Part) { foreach ($m in $s.markers) { [void]$comp.Add("$($s.path)`u{1f}$m"); [void]$chead.Add($s.path) } }
+    $doc = [System.Collections.Generic.HashSet[string]]::new()
+    $dhead = [System.Collections.Generic.HashSet[string]]::new()
+    foreach ($dp in $DocPairs) { if ($dp.state -eq "code" -or $dp.state -eq "context") { [void]$doc.Add("$($dp.heading)`u{1f}$($dp.path)"); [void]$dhead.Add($dp.heading) } }
+    $diff = [System.Collections.Generic.List[string]]::new()
+    foreach ($k in $comp) { $a = $k.Split("`u{1f}"); if ($dhead.Contains($a[0]) -and -not $doc.Contains($k)) { $diff.Add("missing`u{1f}$($a[0])`u{1f}$($a[1])") } }
+    foreach ($k in $doc)  { $a = $k.Split("`u{1f}"); if ($chead.Contains($a[0]) -and -not $comp.Contains($k)) { $diff.Add("extra`u{1f}$($a[0])`u{1f}$($a[1])") } }
+    $darr = [string[]]$diff.ToArray(); [Array]::Sort($darr, [System.StringComparer]::Ordinal)
+    foreach ($d in $darr) {
+      $a = $d.Split("`u{1f}")
+      if ($a[0] -eq "missing") { $issues += [pscustomobject]@{ severity="soft"; type="structure"; target=$a[1]; detail="computed marker absent from the section: $($a[2])"; run="/speckit.blueprint-index.init --from-code $($a[1])"; kind="authored" } }
+      else { $issues += [pscustomobject]@{ severity="soft"; type="structure"; target=$a[1]; detail="marker not computed for this section (moved/freehand): $($a[2])"; run="/speckit.blueprint-index.init --from-code $($a[1])"; kind="authored" } }
+    }
+  }
+
   $hardN = @($issues | Where-Object { $_.severity -eq "hard" }).Count
   $softN = @($issues | Where-Object { $_.severity -eq "soft" }).Count
   $inSync = ($issues.Count -eq 0)

@@ -219,7 +219,7 @@ if ($Command -eq "render") {
   $rel = $Blueprint.Replace("$Root/", "").Replace("$Root\", "")
   $dropnote = if ($dropped -gt 0) { " (dropped $dropped dangling edge(s))" } else { "" }
   WL "rendered $sectionCount section(s), $($relLines.Count) relation(s)$dropnote → $rel"
-  WL "next: restamp, then verify + check"
+  WL "next: restamp, then check"
   Flush
   exit 0
 }

@@ -75,6 +75,16 @@ if ($ConfigInvalid) { exit 2 }
 
 . "$PSScriptRoot/lib/Common-Git.ps1"
 . "$PSScriptRoot/lib/State-Frontier.ps1"
+if ($Command -eq "check" -and $Blueprint -and (Test-Path $Blueprint)) {
+  # the gate's structure check recomputes the partition (bash parity: the
+  # intersection-domain diff — hand-authored maps are never judged)
+  $Struct = $true; $Scope = ""; $All = $false; $Facts = ""
+  $Cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
+  . "$PSScriptRoot/lib/Common-Helpers.ps1"
+  . "$PSScriptRoot/lib/Slice-Config.ps1"
+  . "$PSScriptRoot/lib/Slice-Covered.ps1"
+  . "$PSScriptRoot/lib/Slice-Partition.ps1"
+}
 . "$PSScriptRoot/lib/State-Check.ps1"
 if ($Command -eq "check") { exit $LASTEXITCODE }
 . "$PSScriptRoot/lib/State-Restamp.ps1"

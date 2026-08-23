@@ -36,7 +36,10 @@ BP="$R/.specify/memory/blueprint.md"
 # ── phase 0: on-ramp (the real shipped path: scaffold writes the structure) ───
 bash "$SLICER" scaffold --root "$R" --blueprint "$BP" > "$BP"
 bash "$ORACLE" restamp --root "$R" --blueprint "$BP" >/dev/null 2>&1
-bash "$SLICER" verify --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "on-ramp: verify conforms" $? ""
+bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1; assert "on-ramp: no structure issues (map == computed)" $? ""
 bash "$ORACLE" check --json --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "on-ramp: gate green" $? ""
 bash "$ORACLE" next --json --root "$R" --blueprint "$BP" 2>/dev/null | grep -q '"has_next": false'
 assert "on-ramp: next idle (no hallucinated backlog)" $? ""
@@ -73,8 +76,10 @@ PYEOF
 bash "$ORACLE" check --json --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "distill clears the drift" $? ""
 bash "$ORACLE" next --json --root "$R" --blueprint "$BP" 2>/dev/null | grep -q '"has_next": false'
 assert "next idle — waterfall complete for the slice" $? ""
-bash "$SLICER" verify --root "$R" --blueprint "$BP" >/dev/null 2>&1
-assert "verify: spec-owned src/io now outside slicer jurisdiction" $? ""
+bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1; assert "structure check: spec-owned src/io outside slicer jurisdiction" $? ""
 
 # ── phase 3: hotfix -> STALE -> self-heal via remedy contract ─────────────────
 printf 'y\n' >> "$R/src/core/c1.py"
@@ -100,8 +105,10 @@ assert len(u)==1 and u[0]['target']=='newmod' and 'from-code newmod' in u[0]['re
 bash "$SLICER" scaffold --root "$R" --blueprint "$BP" --scope newmod >> "$BP"
 bash "$ORACLE" restamp --root "$R" --blueprint "$BP" --path newmod >/dev/null 2>&1
 bash "$ORACLE" check --json --root "$R" --blueprint "$BP" >/dev/null 2>&1; assert "re-onboarded module: gate green" $? ""
-bash "$SLICER" verify --root "$R" --blueprint "$BP" >/dev/null 2>&1
-assert "re-onboarded module: verify conforms (scoped == full recompute)" $? ""
+bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
+" >/dev/null 2>&1; assert "re-onboarded module: no structure issues (scoped == full recompute)" $? ""
 
 # ── phase 5: end state ────────────────────────────────────────────────────────
 bash "$ORACLE" check --json --root "$R" --blueprint "$BP" 2>/dev/null | python3 -c "
