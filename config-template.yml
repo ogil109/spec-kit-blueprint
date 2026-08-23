@@ -1,6 +1,8 @@
 # Blueprint extension configuration
 # Installed to: .specify/extensions/blueprint-index/blueprint-config.yml
-# Layered: extension defaults < this file < blueprint-config.local.yml < SPECKIT_BLUEPRINT_* env
+# Absent keys fall back to the shipped defaults shown here; unknown keys and
+# wrong types are hard errors (nothing runs) — this file is the ONLY config
+# source, so overrides are always checked in and replay identically.
 
 blueprint:
   # Where the blueprint document lives, relative to the repo root. If unset, the

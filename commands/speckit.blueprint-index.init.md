@@ -106,7 +106,9 @@ not the banner, is what the oracle reads. **Never invent content the source lack
 never delete a section's design detail.**
 
 6. **Refresh the Table of Contents** so each section's status matches its marker
-   (`context` / `detailed` / `distilled → specs/<slug>` / `owned by code → src/<area>`).
+   (`**context**` / `**detailed**` / `**distilled** → \`specs/<slug>\`` /
+   `**code-owned**` — the same status vocabulary the template, scaffold, and
+   renderer use).
 
 7. **Record code baselines.** Run the oracle's restamp to fill every `sha=NONE`:
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp` (or the
