@@ -21,6 +21,17 @@ leftover from when the config held two cosmetic settings. Other suspects are
 known (see *Starting Candidates*), and the working assumption is that more
 exist undiscovered.
 
+## Clarifications
+
+### Session 2026-08-23
+
+- Q: Is there a human approval gate between the research phase (inventory +
+  dispositions) and the cleanup execution? → A: No gate — single flow; research
+  and cleanup land together in one reviewable change. Post-cleanup validation
+  must include the full end-to-end exercise on two large real codebases
+  (pandas plus one of comparable size), not pandas alone. The pending
+  script-modularization change was merged before this feature starts.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - The Decision Inventory and End State (Priority: P1)
@@ -165,6 +176,11 @@ inventory file exists in the repository with a stated maintenance rule.
 - **FR-009**: The contribution guidance MUST require new mechanisms to record
   their rationale in the inventory, and the inventory MUST be kept as a
   maintained repository artifact.
+- **FR-010**: Post-cleanup validation MUST include the complete brownfield
+  end-to-end exercise (on-ramp through the lifecycle drills) on at least two
+  large real codebases: pandas and one additional codebase of comparable size
+  (thousands of tracked files, polyglot), both completing with the gate green
+  at every checkpoint.
 
 ### Key Entities
 
@@ -198,6 +214,9 @@ inventory file exists in the repository with a stated maintenance rule.
   inventory.
 - **SC-006**: All acceptance suites pass at completion, and every change in
   suite counts relative to the start is explained by an inventory entry.
+- **SC-007**: The full end-to-end exercise completes green on two large real
+  codebases (pandas plus one of comparable size), demonstrating the cleaned
+  pipeline end to end on more than one real-world shape.
 
 ## Starting Candidates *(scope note, not the boundary)*
 
@@ -223,9 +242,9 @@ whole codebase and treat this list as a floor, not the scope:
 - The project is pre-1.0 and has prior precedent for declared breaking
   changes; cleanup may therefore change released behavior when declared
   (FR-005), without a compatibility mandate.
-- Implementation builds on the pending script-modularization change and
-  begins after it lands; the inventory may nonetheless be researched against
-  the current state at any time.
+- The script-modularization change is already merged; research and cleanup
+  run against the modular layout, as a single ungated flow (per
+  Clarifications) landing in one reviewable change.
 - Recorded session history (review logs, the live end-to-end log, the design
   document) is admissible evidence for mechanism origins.
 - Open enhancement work (for example, the delta-scoped recovery issue) is out
