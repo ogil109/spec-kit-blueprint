@@ -10,11 +10,15 @@ if ($Command -eq "render") {
   function Get-Sha($p) { $s = git -C $Root rev-parse --verify --quiet "HEAD:$p" 2>$null; if ($LASTEXITCODE -eq 0 -and $s) { return ([string]$s).Trim() } else { return "" } }
 
   # map structure: heading -> state, heading -> markers
-  $headState = @{}; $headMarkers = @{}
+  $headState = @{}; $headMarkers = @{}; $headOwner = @{}
   $hh = ""
   foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
     if ($line -match '^## ') { $hh = ($line -replace '^##\s+', '' -replace ' \(remainder\)$', ''); continue }
-    if ($line -match '<!-- blueprint:section state=(\S+)') { $s = ($Matches[1] -replace '-->.*', ''); if ($hh) { $headState[$hh] = $s }; continue }
+    if ($line -match '<!-- blueprint:section state=(\S+)') {
+      $s = ($Matches[1] -replace '-->.*', '')
+      if ($hh) { $headState[$hh] = $s; if ($line -match ' owner=(\S+)') { $headOwner[$hh] = ($Matches[1] -replace '-->.*', '') } }
+      continue
+    }
     if ($line -match '<!-- blueprint:(code|context) path=(\S+)') {
       if (-not $headMarkers.ContainsKey($hh)) { $headMarkers[$hh] = [System.Collections.Generic.List[string]]::new() }
       $headMarkers[$hh].Add($Matches[2]); continue
@@ -31,7 +35,13 @@ if ($Command -eq "render") {
     $evPath = $ev.Split("#")[0]
     $evPat = if ($ev.Contains("#")) { $ev.Substring($ev.IndexOf("#") + 1) } else { "" }
     if (-not (Get-Sha $evPath)) { $script:errs.Add("$who evidence not tracked in git: $evPath"); return }
-    if ($juris -and -not (CoveredBy $evPath $juris)) { $script:errs.Add("$who evidence outside '$juris' markers: $evPath") }
+    if ($juris -and -not (CoveredBy $evPath $juris)) {
+      # lane parity (D3): a spec-owned section's jurisdiction includes the
+      # owning spec's directory — digests may anchor to the spec itself.
+      $own = if ($headOwner.ContainsKey($juris)) { $headOwner[$juris] } else { "" }
+      if ($own -eq "") { $script:errs.Add("$who evidence outside '$juris' markers: $evPath") }
+      elseif (-not ($evPath -eq $own -or $evPath.StartsWith("$own/"))) { $script:errs.Add("$who evidence outside '$juris' markers or '$own': $evPath") }
+    }
     if ($evPat -ne "") {
       $content = git -C $Root show "HEAD:$evPath" 2>$null
       $hit = $false
@@ -57,9 +67,9 @@ if ($Command -eq "render") {
       $nm = $Matches[1]
       if (($blocks | Where-Object { $_.name -eq $nm }).Count -gt 0) { $errs.Add("duplicate block for '$nm' — a facts file declares each section once") }
       $st = if ($headState.ContainsKey($nm)) { $headState[$nm] } else { "" }
-      if ($st -eq "code" -or $st -eq "context") { $sectionCount++ }
+      if ($st -eq "code" -or $st -eq "context" -or $st -eq "distilled") { $sectionCount++ }
       elseif ($st -eq "") { $errs.Add("section '$nm' is not on the map (scaffold first; check the heading)"); $st = "code" }
-      else { $errs.Add("section '$nm' is $st-owned — render only writes code/context sections") }
+      else { $errs.Add("section '$nm' is $st-owned — a detailed section's body is design-in-waiting, not rendered claims") }
       $cur = [pscustomobject]@{ name = $nm; state = $st; role = ""; facets = [System.Collections.Generic.List[string]]::new(); notes = [System.Collections.Generic.List[string]]::new() }
       continue
     }
@@ -154,6 +164,10 @@ if ($Command -eq "render") {
     }
     if ($b.notes.Count -gt 0) { $o += "`n"; foreach ($nt in $b.notes) { $o += $nt + "`n" } }
     if ($b.state -eq "code") { $o += "`nFor exact behavior, read the code under ``" + $h + "/``. Do not restate it here.`n" }
+    if ($b.state -eq "distilled") {
+      $own = if ($headOwner.ContainsKey($h)) { $headOwner[$h] } else { "" }
+      $o += "`nFor every requirement, threshold, and entity shape, see ``" + $own + "/spec.md``.`nDo not restate those details here — this section indexes the spec.`n"
+    }
     return $o
   }
   $relHead = "Architecture — subsystem relations"
@@ -178,7 +192,9 @@ if ($Command -eq "render") {
       $tocSeen = $true; [void]$tocPresent.Add($pth)
       if ($byName.ContainsKey($pth)) {
         $rem = if ($line -match ' \(remainder\)') { " (remainder)" } else { "" }
-        $status = if ($byName[$pth].state -eq "context") { "**context**" } else { "**code-owned**" }
+        $status = if ($byName[$pth].state -eq "context") { "**context**" }
+                  elseif ($byName[$pth].state -eq "distilled") { "**distilled** → ``$($headOwner[$pth])``" }
+                  else { "**code-owned**" }
         [void]$sb.Append("- ``$pth``$rem — $(First-Sentence $byName[$pth].role); $status`n")
         continue
       }
@@ -186,7 +202,9 @@ if ($Command -eq "render") {
     if ($inToc -and $tocSeen -and -not $tocFlushed -and $line -match '^\s*$') {
       foreach ($b in $blocks) {
         if (-not $tocPresent.Contains($b.name)) {
-          $status = if ($b.state -eq "context") { "**context**" } else { "**code-owned**" }
+          $status = if ($b.state -eq "context") { "**context**" }
+                    elseif ($b.state -eq "distilled") { "**distilled** → ``$($headOwner[$b.name])``" }
+                    else { "**code-owned**" }
           [void]$sb.Append("- ``$($b.name)`` — $(First-Sentence $b.role); $status`n")
         }
       }

@@ -30,7 +30,15 @@ if [ "$CMD" = "render" ]; then
     evpath="${ev%%#*}"; evpat=""
     case "$ev" in *"#"*) evpat="${ev#*#}" ;; esac
     if [ -z "$(current_sha "$evpath")" ]; then err "$who evidence not tracked in git: $evpath"; return; fi
-    if [ -n "$juris" ] && ! covered_by "$evpath" "$juris"; then err "$who evidence outside '$juris' markers: $evpath"; fi
+    if [ -n "$juris" ] && ! covered_by "$evpath" "$juris"; then
+      # lane parity (D3): a spec-owned section's jurisdiction includes the
+      # owning spec's directory — digests may anchor to the spec itself.
+      own="$(sec_owner "$juris")"
+      case "$own" in
+        "") err "$who evidence outside '$juris' markers: $evpath" ;;
+        *) case "$evpath" in "$own"|"$own"/*) ;; *) err "$who evidence outside '$juris' markers or '$own': $evpath" ;; esac ;;
+      esac
+    fi
     # no `grep -q`: early exit SIGPIPEs `git show` on files larger than a pipe
     # buffer, and pipefail then reports a FOUND pattern as missing. Let grep
     # consume its whole input; the pipeline status is then grep's own 0/1.
@@ -43,13 +51,15 @@ if [ "$CMD" = "render" ]; then
   MAPSTRUCT="$(awk -v US="$US" '
     /^## / { h = $0; sub(/^##[[:space:]]+/, "", h); sub(/ \(remainder\)$/, "", h); heading = h; next }
     /<!-- blueprint:section state=/ { s = $0; sub(/.*state=/, "", s); sub(/[[:space:]].*/, "", s)
-                                      print "H" US s US heading; next }
+                                      o = ""; if ($0 ~ / owner=/) { o = $0; sub(/.*owner=/, "", o); sub(/[[:space:]].*/, "", o) }
+                                      print "H" US s US heading US o; next }
     /<!-- blueprint:code path=/     { p = $0; sub(/.*path=/, "", p); sub(/[[:space:]].*/, "", p)
                                       print "M" US heading US p; next }
     /<!-- blueprint:context path=/  { p = $0; sub(/.*path=/, "", p); sub(/[[:space:]].*/, "", p)
                                       print "M" US heading US p; next }
   ' "$BLUEPRINT")"
   sec_state() { printf '%s\n' "$MAPSTRUCT" | awk -F"$US" -v h="$1" '$1=="H" && $3==h { print $2; exit }'; }
+  sec_owner() { printf '%s\n' "$MAPSTRUCT" | awk -F"$US" -v h="$1" '$1=="H" && $3==h { print $4; exit }'; }
   sec_markers() { printf '%s\n' "$MAPSTRUCT" | awk -F"$US" -v h="$1" '$1=="M" && $2==h { print $3 }'; }
   covered_by() { # evidence heading → 0 if covered by one of heading's markers
     local ev="$1" h="$2" m
@@ -89,6 +99,7 @@ if [ "$CMD" = "render" ]; then
       printf '@@BEGIN%s%s\n' "$US" "$CUR"
       printf 'ROLE%s%s\n' "$US" "$CURROLE"
       printf 'STATE%s%s\n' "$US" "$CURSTATE"
+      printf 'OWNER%s%s\n' "$US" "$(sec_owner "$CUR")"
       local i
       for i in "${CURFACETS[@]:-}"; do [ -n "$i" ] && printf 'FACET%s%s\n' "$US" "$i"; done
       for i in "${CURNOTES[@]:-}";  do [ -n "$i" ] && printf 'NOTE%s%s\n' "$US" "$i"; done
@@ -107,9 +118,9 @@ if [ "$CMD" = "render" ]; then
          [ "$dup" = 1 ] && err "duplicate block for '$rest' — a facts file declares each section once"
          st="$(sec_state "$rest")"
          case "$st" in
-           code|context) SECTIONS+=("$rest"); newcur "$rest" "$st" ;;
+           code|context|distilled) SECTIONS+=("$rest"); newcur "$rest" "$st" ;;
            "") err "section '$rest' is not on the map (scaffold first; check the heading)"; newcur "$rest" code ;;
-           *)  err "section '$rest' is $st-owned — render only writes code/context sections"; newcur "$rest" "$st" ;;
+           *)  err "section '$rest' is $st-owned — a detailed section's body is design-in-waiting, not rendered claims"; newcur "$rest" "$st" ;;
          esac ;;
       R) [ -n "$CUR" ] || { err "role before any section"; continue; }
          CURROLE="$rest" ;;
@@ -207,6 +218,8 @@ if [ "$CMD" = "render" ]; then
     }
     if (state[h] == "code")
       out = out "\nFor exact behavior, read the code under `" h "/`. Do not restate it here.\n"
+    if (state[h] == "distilled")
+      out = out "\nFor every requirement, threshold, and entity shape, see `" owner[h] "/spec.md`.\nDo not restate those details here — this section indexes the spec.\n"
     return out
   }
   BEGIN {
@@ -217,6 +230,7 @@ if [ "$CMD" = "render" ]; then
       if (a[1] == "@@BEGIN")      { h = a[2]; nfacets[h] = 0; nnotes[h] = 0; known[h] = 1; kn[++nkn] = h }
       else if (a[1] == "ROLE")    { role[h] = a[2] }
       else if (a[1] == "STATE")   { state[h] = a[2] }
+      else if (a[1] == "OWNER")   { owner[h] = a[2] }
       else if (a[1] == "FACET")   { facets[h, ++nfacets[h]] = a[2] US a[3] US a[4] }
       else if (a[1] == "NOTE")    { notes[h, ++nnotes[h]] = a[2] }
     }
@@ -245,7 +259,9 @@ if [ "$CMD" = "render" ]; then
       toc_seen = 1; toc_present[p] = 1
       if (p in known) {
         rem = (line ~ / \(remainder\)/) ? " (remainder)" : ""
-        status = (state[p] == "context") ? "**context**" : "**code-owned**"
+        if (state[p] == "context") status = "**context**"
+        else if (state[p] == "distilled") status = "**distilled** → `" owner[p] "`"
+        else status = "**code-owned**"
         print "- `" p "`" rem " — " first_sentence(role[p]) "; " status
         next
       }
@@ -258,7 +274,9 @@ if [ "$CMD" = "render" ]; then
       for (i = 1; i <= nkn; i++) {
         p = kn[i]
         if (!(p in toc_present)) {
-          status = (state[p] == "context") ? "**context**" : "**code-owned**"
+          if (state[p] == "context") status = "**context**"
+          else if (state[p] == "distilled") status = "**distilled** → `" owner[p] "`"
+          else status = "**code-owned**"
           print "- `" p "` — " first_sentence(role[p]) "; " status
         }
       }
