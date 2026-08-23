@@ -8,8 +8,8 @@
 #   3. out-of-band hotfix -> STALE -> self-heal via the remedy JSON contract
 #   4. out-of-band new module -> UNMAPPED -> scoped slice re-onboards it
 #   5. final: in_sync, verify conforms, next idle
-# The same flow is exercised against a real 2,649-file repo (pandas) in
-# docs/deterministic-onramp.md — this is its deterministic CI twin.
+# The same flow is exercised against real large repos in the pre-release
+# ritual (CONTRIBUTING) — this is its deterministic CI twin.
 set -uo pipefail
 
 EXT="$(cd "$(dirname "$0")/.." && pwd)"

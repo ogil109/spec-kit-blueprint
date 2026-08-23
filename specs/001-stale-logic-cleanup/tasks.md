@@ -31,7 +31,7 @@
       spec's directory; spec-pointer closer); tests incl. GAP-6 flip
       (distilled edges repairable). Rewrite `distill.md` and `remap.md` onto
       emit-facts → render → restamp; align greenfield guidance in `init.md`.
-- [ ] T008 [D8] Remove `docs/deterministic-onramp.md` after salvaging the
+- [x] T008 [D8] Remove `docs/deterministic-onramp.md` after salvaging the
       still-current essence into README; audit `docs/autonomous-harness.md`
       claims against current behavior (fix or keep).
 - [ ] T009 [D4 + FR-006] Working-docs zero-contradiction pass: README,

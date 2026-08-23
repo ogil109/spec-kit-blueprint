@@ -316,8 +316,16 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
   relation edges); `render` machine-validates every claim and writes the prose and
   relation markers from the same source, so they cannot contradict and two recovery
   runs are compared by diffing facts, not wording. What remains genuinely
-  agent-judged — and human-reviewed — is *which* facts to assert; `distill` digests
-  stay directly authored against the same anatomy.
+  agent-judged — and human-reviewed — is *which* facts to assert; `distill` and
+  `remap` author through the same facts flow (a distilled section's evidence may
+  also anchor into its owning spec's directory).
+- **A directory partition cannot express everything.** A subsystem that cross-cuts
+  directories (a `compat`/`util` facility threaded through the tree) can never be a
+  code section — markers are git tree/blob paths. Model it as a section with
+  `crosscuts` edges; cross-directory clusters would need a content-digest marker
+  format that is deliberately future work. The thresholds
+  (`max_files=400 / min_files=3`) are defensible defaults, not validated optima —
+  disagreeing with the cut is exactly what the checked-in config levers are for.
 - **Two known edges.** A `[NEEDS CLARIFICATION]` marker that a formatter has *wrapped
   across lines* is not detected (the scan is line-based), so a spec with an open question
   could advance a step. And **root-level loose files** (READMEs, manifests, a stray

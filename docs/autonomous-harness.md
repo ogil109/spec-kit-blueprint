@@ -1,6 +1,6 @@
 # The autonomous waterfall harness
 
-The blueprint extension ships four commands and a coherence gate. It does **not** ship a
+The blueprint extension ships five commands and a coherence gate. It does **not** ship a
 "drive" command — and it doesn't need to. The blueprint is **externalized project state**
 and the oracle computes the **single next action deterministically** from the filesystem,
 so an autonomous build is just an agent **looping on the oracle**. This document is the
