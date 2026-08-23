@@ -49,6 +49,7 @@ source "$LIB/common-root.sh"       # sets ROOT
 git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || { echo "not a git repository: $ROOT" >&2; exit 1; }
 
 CFG="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml"
+source "$LIB/common-config.sh"     # validates the config (exits 2 on violations)
 
 
 # ── locate the blueprint doc (optional here; used for subtraction + exclusion) ─

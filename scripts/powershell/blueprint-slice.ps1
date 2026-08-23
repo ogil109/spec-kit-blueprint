@@ -68,6 +68,9 @@ git -C $Root rev-parse --git-dir 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) { [Console]::Error.WriteLine("not a git repository: $Root"); exit 1 }
 
 $Cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
+$ConfigInvalid = $false
+. "$PSScriptRoot/lib/Common-Config.ps1"   # validates the config
+if ($ConfigInvalid) { exit 2 }
 
 # ── locate the blueprint doc ──────────────────────────────────────────────────
 if (-not $Blueprint -and (Test-Path $Cfg)) {
