@@ -5,28 +5,28 @@
 
 ## Phase 0 — Research deliverable (US1)
 
-- [ ] T001 Sweep all shipped artifacts and write `docs/decision-inventory.md`:
+- [x] T001 Sweep all shipped artifacts and write `docs/decision-inventory.md`:
       every mechanism/claim with origin, rationale, verdict, disposition
       (FR-001); end-state principles embedded from research.md (FR-002);
       dispositions D1–D8 recorded plus every keep with live rationale (FR-004).
 
 ## Phase 1 — Cleanup execution (US2; each task = both ports + docs + tests green)
 
-- [ ] T002 [D1] Config validation at load: bash + PS entries, unknown-key /
+- [x] T002 [D1] Config validation at load: bash + PS entries, unknown-key /
       type / empty-list-parse errors; tests for each failure class; parity
       unaffected on clean configs.
-- [ ] T003 [D7] Test roster single-sourced: CI iterates `tests/*_test.sh`;
+- [x] T003 [D7] Test roster single-sourced: CI iterates `tests/*_test.sh`;
       README/CONTRIBUTING lists replaced with the glob convention.
-- [ ] T004 [D5] Remove the `concern` facts directive: parser, validator,
+- [x] T004 [D5] Remove the `concern` facts directive: parser, validator,
       renderer, recover.md, tests, both ports. Declared breaking.
-- [ ] T005 [D6] Trim auto-detect homes to `.specify/memory/blueprint.md` +
+- [x] T005 [D6] Trim auto-detect homes to `.specify/memory/blueprint.md` +
       `docs/blueprint.md`: both oracles, both ports, docs, tests. Declared
       breaking.
-- [ ] T006 [D2] Fold structure conformance into `check` as SOFT `structure`
+- [x] T006 [D2] Fold structure conformance into `check` as SOFT `structure`
       issues; remove the `verify` subcommand; state entry sources partition
       modules for check; rewrite affected tests (slicer/e2e/parity) and all
       doc references. Declared breaking.
-- [ ] T007 [D3] Lane parity: render accepts `distilled` facts blocks (owner
+- [x] T007 [D3] Lane parity: render accepts `distilled` facts blocks (owner
       parsed from the section marker; jurisdiction widened to the owning
       spec's directory; spec-pointer closer); tests incl. GAP-6 flip
       (distilled edges repairable). Rewrite `distill.md` and `remap.md` onto

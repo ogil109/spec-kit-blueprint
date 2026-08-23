@@ -69,38 +69,61 @@ restate" closer. Match that shape; scale the digest to the slice.
 
 ## Execution
 
-1. Read `spec.md` (and `plan.md` if present). Extract the digest: the slice's role
-   in one or two sentences, then the handful of load-bearing decisions/constants.
-2. Rewrite the section in place: **set its provenance marker** to
-   `<!-- blueprint:section state=distilled owner=specs/<slug> -->` (replacing the
-   previous `state=detailed`/`state=code` marker — this is the extension's deterministic
-   record that it processed the section), then the ownership banner (`> **Distilled —
-   owned by `specs/<slug>`.**`) + the prose role + the bulleted at-a-glance digest + the
-   "see the spec" closer. Compute a correct relative pointer to the spec.
-3. **Stamp the implementation footprint (so code drift on this slice is caught).**
-   If the slice has shipped code, note where it lives — the directory/directories
-   the spec was implemented in (e.g. `src/payments`) — in the banner as
-   `(implemented at \`src/<area>/\`)`, and add a baseline marker per area directly
-   under the banner: `<!-- blueprint:code path=src/<area> sha=NONE -->` (no trailing
-   slash; directory-level is the sane granularity). Then run the oracle's restamp to
-   record the git baselines:
-   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp` (or the
-   PowerShell port). Now `blueprint.check` flags this slice as STALE if its code is
-   later edited out-of-band, and `blueprint.remap` / a re-spec resyncs it — the same
-   gate that protects brownfield code-owned sections. **Skip this only for a
-   spec-only distill with no code yet** (no baseline to record).
-4. **Partial distillation is allowed and normal.** If a spec owns only part of a
+Distillation writes its prose through the **same facts → render flow as every
+other section** — you author claims with evidence, the renderer validates them
+and writes the body, digest, spec-pointer closer, and TOC entry. You never
+hand-write the section body.
+
+1. Read `spec.md` (and `plan.md` if present). Extract the digest facts: the
+   slice's role in one or two sentences, then the handful of load-bearing
+   decisions/constants — each anchored to evidence.
+2. **Set the provenance markers by hand** (markers are structure, not prose):
+   - Flip the section marker to
+     `<!-- blueprint:section state=distilled owner=specs/<slug> -->` (replacing
+     the previous `state=detailed`/`state=code` marker). The `owner=` value must
+     be the space-free spec directory path — it widens the section's evidence
+     jurisdiction to that directory and becomes the TOC's `distilled → owner`
+     pointer.
+   - Update the ownership banner (`> **Distilled — owned by
+     \`specs/<slug>\`.**`) — `> ` callout lines are preserved by the renderer.
+   - **Stamp the implementation footprint** if the slice has shipped code: add a
+     baseline marker per implemented area directly under the banner —
+     `<!-- blueprint:code path=src/<area> sha=NONE -->` (no trailing slash) —
+     and note it in the banner as `(implemented at \`src/<area>/\`)`. Skip only
+     for a spec-only distill with no code yet.
+3. **Author the facts and render.** Write a facts file:
+
+   ```text
+   blueprint-facts 1
+   section <exact heading>
+   role <one-two sentence role>
+   facet <Label> | <load-bearing decision/constant> | <evidence>
+   neighbor uses | <other-section> | <why> | <evidence>
+   ```
+
+   Evidence for a distilled section may anchor into its own code markers **or
+   into `specs/<slug>/...`** (e.g. `specs/<slug>/spec.md#SC-001`) — the owning
+   spec is inside the section's jurisdiction, and `#pattern` anchors are grepped
+   at HEAD so the digest stays falsifiable. Then run
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh render --facts <file>`
+   (or the PowerShell port). The renderer validates every claim and writes the
+   role, the at-a-glance bullets, the "see the spec" closer, and the TOC entry
+   (`distilled → \`specs/<slug>\``) in one pass; on any invalid claim it writes
+   nothing and lists the errors.
+4. **Restamp.** `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp`
+   records the git baselines. Now `blueprint.check` flags this slice as STALE if
+   its code is later edited out-of-band — the same gate that protects brownfield
+   code-owned sections — and its edges are repairable through the same facts flow.
+5. **Partial distillation is allowed and normal.** If a spec owns only part of a
    section (e.g. §3.1–§3.9 but not §3.10), distill that part and leave the rest as
    detailed holding-pen, with a short note saying which sub-part is still unspecced
    and which future spec it's earmarked for. Do not force a whole section to one state.
-5. **Preserve information with no other home.** Cross-cutting notes the spec doesn't
+6. **Preserve information with no other home.** Cross-cutting notes the spec doesn't
    capture move to the relevant detailed section or a brief "Cross-cutting" note —
    never dropped.
-6. Update the blueprint's index/table-of-contents entry for this section to say
-   "distilled → spec <slug>" so the map and the sections agree.
-7. **Idempotent.** If the section is already a digest+pointer for this spec, leave
-   it unless the spec's role/connections changed; never expand a pointer back into
-   full detail. Re-running restamp on an unchanged slice is a no-op.
+7. **Idempotent.** Re-running render with the same facts rewrites the same body;
+   re-running restamp on an unchanged slice is a no-op. Never expand a pointer
+   back into full detail.
 
 ## Confirmation
 
