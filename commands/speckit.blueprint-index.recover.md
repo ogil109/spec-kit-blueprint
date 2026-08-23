@@ -124,11 +124,11 @@ or declared concerns. Semantics:
    facts. It is idempotent and partial: sections you did not name keep their
    current prose.
 
-7. **Idempotent repair.** Section prose renders *partially* — sections you do
-   not name keep their current content — but the relations home is rebuilt
-   from the facts on every render (edge rationale lives only in the rendered
-   table, so a merge is impossible). Repair rule: re-emit facts for only the
-   *sections* that changed, but always carry the **full edge set**.
+7. **Idempotent repair.** Rendering is per-block and needs no bookkeeping
+   from you: a facts block is **authoritative for its section** — its prose
+   and its outgoing edges (an empty neighbor set deletes them) — and
+   everything you do not name is preserved as-is. Re-emit facts for exactly
+   the sections the `check` issues point at.
 
 8. **Close the loop.** After render: restamp, then `blueprint-state.sh check`
    must be free of `relation`/`relation-evidence` issues and

@@ -121,6 +121,18 @@ p="$(pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/
 { [ "$(echo "$b" | tail -1)" = "$(echo "$p" | tail -1)" ] && diff -q "$M1" "$M2" >/dev/null; }
 if [ $? -eq 0 ]; then ok "render (prose + relations + concern) byte-identical"; else bad "render byte parity" "$(diff "$M1" "$M2" | head -6)"; fi
 
+# partial repair on top: one block re-rendered, other edges preserved — identical merge
+cat > "$TMP/facts2.txt" <<'FEOF'
+blueprint-facts 1
+section tests
+role The pytest suite, exercising the application.
+neighbor uses | src | tests import the code under test | tests/t1.py
+FEOF
+bash "$BS" render --root "$R" --blueprint "$M1" --facts "$TMP/facts2.txt" >/dev/null 2>&1
+pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/facts2.txt" >/dev/null 2>&1
+diff -q "$M1" "$M2" >/dev/null
+if [ $? -eq 0 ]; then ok "partial repair merge byte-identical (edges preserved)"; else bad "partial repair parity" "$(diff "$M1" "$M2" | head -6)"; fi
+
 echo
 echo "ps parity: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

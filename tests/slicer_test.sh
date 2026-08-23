@@ -325,6 +325,30 @@ assert "rendered relations pass the gate's endpoint+evidence validation" $? ""
 bash "$SLICER" verify --root "$R2" --blueprint "$B2" >/dev/null 2>&1
 assert "rendered map still verify-conformant (concern/relations invisible)" $? ""
 
+# 20. per-block edge authority is INTERNAL: repairing one section preserves
+#     every other section's edges automatically — no caller-side rule.
+cat > "$TMP/repair.txt" <<'FEOF'
+blueprint-facts 1
+section newmod
+role A new module, now with a dependency.
+neighbor uses | src | calls back into the app core | newmod/n1.py
+FEOF
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/repair.txt" >/dev/null 2>&1
+{ grep -q 'from=newmod to=src kind=uses' "$B2" \
+  && grep -q 'from=src to=newmod kind=uses evidence=src/a/f3.py#newmod.helpers' "$B2" \
+  && grep -q 'from=shared-config to=src kind=crosscuts' "$B2"; }
+assert "partial repair adds its edge and preserves every other section's" $? "$(grep 'blueprint:relation' "$B2")"
+
+# 21. a block with ZERO neighbors is authoritative too: it deletes its edges
+cat > "$TMP/prune.txt" <<'FEOF'
+blueprint-facts 1
+section newmod
+role A new module; the dependency was removed.
+FEOF
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/prune.txt" >/dev/null 2>&1
+{ ! grep -q 'from=newmod ' "$B2" && grep -q 'from=src to=newmod' "$B2"; }
+assert "empty neighbor set prunes the block's own edges, nothing else" $? "$(grep 'blueprint:relation' "$B2")"
+
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

@@ -293,6 +293,49 @@ if [ "$CMD" = "render" ]; then
     exit 1
   fi
 
+  # Edge repair is per-block and INTERNAL: a facts block is authoritative for
+  # its section's outgoing edges; edges from sections not named in the facts
+  # are preserved by round-tripping the machine-written relations home (markers
+  # give from/kind/to/evidence, the table row gives the why — render is the
+  # only writer of that section, so its own format is a reliable source).
+  # Preserved edges whose endpoints left the map are dropped (the gate would
+  # only ever flag them; repair cannot re-assert a section that is gone).
+  OWNED="$US"
+  for s in "${SECTIONS[@]:-}"; do [ -n "$s" ] && OWNED="$OWNED$s$US"; done
+  for c in "${CONCERNS[@]:-}"; do [ -n "$c" ] && OWNED="$OWNED$c$US"; done
+  DROPPED=0
+  while IFS= read -r ex; do
+    [ -n "$ex" ] || continue
+    exfrom="${ex%%"$US"*}"; exrest="${ex#*"$US"}"
+    exkind="${exrest%%"$US"*}"; exrest2="${exrest#*"$US"}"
+    exto="${exrest2%%"$US"*}"
+    case "$OWNED" in *"$US$exfrom$US"*) continue ;; esac        # facts own this from-section
+    tost1="$(sec_state "$exfrom")"; tost2="$(sec_state "$exto")"
+    ok2=1
+    [ -n "$tost1" ] || ok2=0
+    if [ -z "$tost2" ]; then
+      case "$OWNED" in *"$US$exto$US"*) ;; *) ok2=0 ;; esac
+    fi
+    [ "$ok2" = 1 ] || { DROPPED=$((DROPPED+1)); continue; }
+    EDGES+=("$ex")
+  done < <(awk -v US="$US" '
+    /^## / { inrel = ($0 == "## Architecture — subsystem relations"); next }
+    inrel && /^\| / && $0 !~ /^\| from \|/ && $0 !~ /^\|---/ {
+      row = $0; sub(/^\| /, "", row); sub(/ \|$/, "", row)
+      n = split(row, f, / \| /)
+      if (n == 4) why[f[1] US f[2] US f[3]] = f[4]
+      next
+    }
+    inrel && /<!-- blueprint:relation / {
+      m = $0
+      sub(/.*from=/, "", m); from = m; sub(/ .*/, "", from)
+      m = $0; sub(/.*to=/, "", m); to = m; sub(/ .*/, "", to)
+      m = $0; sub(/.*kind=/, "", m); kind = m; sub(/ .*/, "", kind)
+      m = $0; sub(/.*evidence=/, "", m); ev = m; sub(/ .*/, "", ev)
+      print from US kind US to US why[from US kind US to] US ev
+    }
+  ' "$BLUEPRINT")
+
   # relations content: full-line ordinal sort, then dedupe by from|kind|to
   # keeping the first (= smallest full line) — fully deterministic, and the PS
   # port replicates it exactly.
@@ -430,7 +473,8 @@ if [ "$CMD" = "render" ]; then
   fi
   mv "$NEWDOC" "$BLUEPRINT"; trap 'rm -f "$BLOCKS"' EXIT
   nrel=0; [ -n "$RELATIONS" ] && nrel=$(printf '%s\n' "$RELATIONS" | grep -c .)
-  echo "rendered ${#SECTIONS[@]} section(s), ${#CONCERNS[@]} concern(s), $nrel relation(s) → ${BLUEPRINT#"$ROOT/"}"
+  dropnote=""; [ "$DROPPED" -gt 0 ] && dropnote=" (dropped $DROPPED dangling edge(s))"
+  echo "rendered ${#SECTIONS[@]} section(s), ${#CONCERNS[@]} concern(s), $nrel relation(s)$dropnote → ${BLUEPRINT#"$ROOT/"}"
   echo "next: restamp, then verify + check"
   exit 0
 fi
