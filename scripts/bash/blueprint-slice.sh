@@ -168,6 +168,20 @@ if [ "$CMD" = "render" ]; then
   [ -n "$FACTS" ] && [ -f "$FACTS" ] || { echo "render: --facts <file> required" >&2; exit 2; }
   { [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; } || { echo "render: no blueprint found (scaffold first)" >&2; exit 1; }
   current_sha() { git -C "$ROOT" rev-parse --verify --quiet "HEAD:$1" 2>/dev/null || true; }
+  # evidence may be <path> or <path>#<pattern>; a pattern makes the claim
+  # FALSIFIABLE — the fixed string must be present in the file at HEAD, checked
+  # here and re-checked forever by the gate (semantic rot: import removed, file
+  # kept). validate_ev <who> <evidence> <jurisdiction-heading-or-empty>
+  validate_ev() {
+    local who="$1" ev="$2" juris="$3" evpath evpat
+    evpath="${ev%%#*}"; evpat=""
+    case "$ev" in *"#"*) evpat="${ev#*#}" ;; esac
+    if [ -z "$(current_sha "$evpath")" ]; then err "$who evidence not tracked in git: $evpath"; return; fi
+    if [ -n "$juris" ] && ! covered_by "$evpath" "$juris"; then err "$who evidence outside '$juris' markers: $evpath"; fi
+    if [ -n "$evpat" ] && ! git -C "$ROOT" show "HEAD:$evpath" 2>/dev/null | grep -qF -- "$evpat"; then
+      err "$who evidence pattern not found in $evpath: '$evpat'"
+    fi
+  }
 
   # map structure: managed headings, their states, and their marker paths
   MAPSTRUCT="$(awk -v US="$US" '
@@ -252,10 +266,8 @@ if [ "$CMD" = "render" ]; then
          CURNOTES+=("$rest") ;;
       F) [ -n "$CUR" ] || { err "facet before any section/concern"; continue; }
          ev="${rest##*"$US"}"
-         [ -n "$(current_sha "$ev")" ] || err "'$CUR' facet evidence not tracked in git: $ev"
-         if [ "$CURKIND" = "section" ] && ! covered_by "$ev" "$CUR"; then
-           err "'$CUR' facet evidence outside the section's own markers: $ev"
-         fi
+         juris=""; [ "$CURKIND" = "section" ] && juris="$CUR"
+         validate_ev "'$CUR' facet" "$ev" "$juris"
          CURFACETS+=("$rest") ;;
       N) [ -n "$CUR" ] || { err "neighbor before any section/concern"; continue; }
          kind="${rest%%"$US"*}"; r2="${rest#*"$US"}"
@@ -266,13 +278,10 @@ if [ "$CMD" = "render" ]; then
          [ -n "$tost" ] && tok=1
          for c in "${CONCERNS[@]:-}"; do [ "$c" = "$to" ] && tok=1; done
          [ "$tok" = 1 ] || err "'$CUR' neighbor endpoint not on the map: $to"
-         [ -n "$(current_sha "$ev")" ] || err "'$CUR' neighbor evidence not tracked in git: $ev"
-         if [ "$kind" = "uses" ] && [ "$CURKIND" = "section" ] && ! covered_by "$ev" "$CUR"; then
-           err "'$CUR' uses-edge evidence must sit under '$CUR' markers: $ev"
-         fi
-         if [ "$kind" = "crosscuts" ] && [ -n "$tost" ] && ! covered_by "$ev" "$to"; then
-           err "'$CUR' crosscuts-edge evidence must sit under '$to' markers: $ev"
-         fi
+         juris=""
+         if [ "$kind" = "uses" ] && [ "$CURKIND" = "section" ]; then juris="$CUR"
+         elif [ "$kind" = "crosscuts" ] && [ -n "$tost" ]; then juris="$to"; fi
+         validate_ev "'$CUR' $kind-edge" "$ev" "$juris"
          EDGES+=("$CUR$US$kind$US$to$US$why$US$ev") ;;
     esac
   done <<<"$RECS"

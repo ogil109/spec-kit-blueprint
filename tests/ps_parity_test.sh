@@ -85,6 +85,7 @@ cat >> "$BP" <<'EOF'
 <!-- blueprint:relation from=src to=tests kind=uses evidence=src/loose.py -->
 <!-- blueprint:relation from=src to=ghost kind=uses evidence=src/loose.py -->
 <!-- blueprint:relation from=tests to=src kind=uses evidence=tests/gone.py -->
+<!-- blueprint:relation from=src to=MixedCase kind=uses evidence=src/loose.py#no_such_symbol -->
 EOF
 b="$(bash "$BO" check --json --root "$R" --blueprint "$BP" 2>/dev/null; echo "rc=$?")"
 p="$(pwsh -NoProfile "$PSST" check --json --root "$R" --blueprint "$BP" 2>/dev/null; echo "rc=$?")"
@@ -107,7 +108,7 @@ blueprint-facts 1
 section src
 role Application source tree.
 facet Entry | `src/loose.py` wires the modules. | src/loose.py
-neighbor uses | tests | exercised by the suite | src/loose.py
+neighbor uses | tests | exercised by the suite | src/loose.py#x
 concern build-config
 role Where build configuration lives.
 neighbor crosscuts | src | manifest read at build time | src/core/f1.py

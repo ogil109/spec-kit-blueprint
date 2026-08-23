@@ -144,6 +144,20 @@ if ($Command -eq "render") {
     foreach ($m in $headMarkers[$h]) { if ($ev -eq $m -or $ev.StartsWith("$m/")) { return $true } }
     return $false
   }
+  # evidence may be <path> or <path>#<pattern> (fixed string that must be
+  # present in the file at HEAD — makes the claim falsifiable; bash parity)
+  function Validate-Ev($who, $ev, $juris) {
+    $evPath = $ev.Split("#")[0]
+    $evPat = if ($ev.Contains("#")) { $ev.Substring($ev.IndexOf("#") + 1) } else { "" }
+    if (-not (Get-Sha $evPath)) { $script:errs.Add("$who evidence not tracked in git: $evPath"); return }
+    if ($juris -and -not (CoveredBy $evPath $juris)) { $script:errs.Add("$who evidence outside '$juris' markers: $evPath") }
+    if ($evPat -ne "") {
+      $content = git -C $Root show "HEAD:$evPath" 2>$null
+      $hit = $false
+      foreach ($cl in @($content)) { if (([string]$cl).Contains($evPat)) { $hit = $true; break } }
+      if (-not $hit) { $script:errs.Add("$who evidence pattern not found in ${evPath}: '$evPat'") }
+    }
+  }
 
   # parse facts + validate
   $errs = [System.Collections.Generic.List[string]]::new()
@@ -182,8 +196,8 @@ if ($Command -eq "render") {
       $parts = $Matches[1] -split ' \| '
       if ($parts.Count -ne 3) { $errs.Add("facts line ${lineNo}: facet needs: <Label> | <text> | <evidence>"); continue }
       $ev = $parts[2]
-      if (-not (Get-Sha $ev)) { $errs.Add("'$($cur.name)' facet evidence not tracked in git: $ev") }
-      if ($cur.kind -eq "section" -and -not (CoveredBy $ev $cur.name)) { $errs.Add("'$($cur.name)' facet evidence outside the section's own markers: $ev") }
+      $juris = if ($cur.kind -eq "section") { $cur.name } else { "" }
+      Validate-Ev "'$($cur.name)' facet" $ev $juris
       $cur.facets.Add("$($parts[0])`u{1f}$($parts[1])`u{1f}$ev")
       continue
     }
@@ -196,9 +210,10 @@ if ($Command -eq "render") {
       $tost = if ($headState.ContainsKey($to)) { $headState[$to] } else { "" }
       $tok = ($tost -ne "") -or ($concernNames -contains $to)
       if (-not $tok) { $errs.Add("'$($cur.name)' neighbor endpoint not on the map: $to") }
-      if (-not (Get-Sha $ev)) { $errs.Add("'$($cur.name)' neighbor evidence not tracked in git: $ev") }
-      if ($kind -eq "uses" -and $cur.kind -eq "section" -and -not (CoveredBy $ev $cur.name)) { $errs.Add("'$($cur.name)' uses-edge evidence must sit under '$($cur.name)' markers: $ev") }
-      if ($kind -eq "crosscuts" -and $tost -ne "" -and -not (CoveredBy $ev $to)) { $errs.Add("'$($cur.name)' crosscuts-edge evidence must sit under '$to' markers: $ev") }
+      $juris = ""
+      if ($kind -eq "uses" -and $cur.kind -eq "section") { $juris = $cur.name }
+      elseif ($kind -eq "crosscuts" -and $tost -ne "") { $juris = $to }
+      Validate-Ev "'$($cur.name)' $kind-edge" $ev $juris
       $edges.Add("$($cur.name)`u{1f}$kind`u{1f}$to`u{1f}$why`u{1f}$ev")
       continue
     }
