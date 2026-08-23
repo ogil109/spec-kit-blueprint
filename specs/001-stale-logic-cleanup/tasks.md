@@ -48,7 +48,7 @@
 
 - [x] T011 Full suites + parity green; suite-count deltas recorded in the
       affected inventory entries (FR-008).
-- [ ] T012 Dual-repo e2e: full brownfield on-ramp + lifecycle drills on
+- [x] T012 Dual-repo e2e: full brownfield on-ramp + lifecycle drills on
       pandas AND scikit-learn, gate green at every checkpoint (SC-007);
       inventory outcomes column completed (SC-004); final docs audit
       (SC-003).

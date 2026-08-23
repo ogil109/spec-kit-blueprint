@@ -146,6 +146,19 @@ Every disposition above has executed on the cleanup branch:
 - **Unfounded config-layering claim** (found during the zero-contradiction
   pass) → removed in `a2c512a`.
 
-Full suites at completion: check/gate 34 · config validation 6 · e2e lifecycle
+- **Dual-repo e2e (FR-010/SC-007)** → executed on fresh shallow clones of
+  pandas (2,649 tracked files, 19 sections) and scikit-learn (1,820 tracked
+  files, 39 sections): config-validation refusal, byte-deterministic partition,
+  scaffold → restamp → gate green with zero structure issues, additive
+  re-scaffold silent on an unchanged repo, facts render with `#pattern`
+  evidence at HEAD, stale → remedy-JSON self-heal under `--strict`,
+  unmapped → scoped re-onboard, the distilled lane end to end (spec-anchored
+  evidence, closer, gate green), and marker tampering raising `structure`
+  issues — 19/19 checkpoints green on both repos. `slice --json` and
+  `check --json` verified byte-identical between the ports on both real repos.
+  The drill surfaced one real defect (explicit `--blueprint` silent fallback,
+  fixed above).
+
+Full suites at completion: check/gate 36 · config validation 6 · e2e lifecycle
 20 · harness loop 5 · oracle 13 · portability lint 30 · slicer 40 · ps parity
 15 — all green, both ports.
