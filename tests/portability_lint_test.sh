@@ -17,7 +17,7 @@ PASS=0; FAIL=0
 ok()  { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL %s\n%s\n' "$1" "$2"; }
 
-for f in "$SCRIPTS_DIR"/*.sh; do
+for f in "$SCRIPTS_DIR"/*.sh "$SCRIPTS_DIR"/lib/*.sh; do
   name="$(basename "$f")"
 
   # GNU-only regex shorthands: a literal backslash followed by s, d, or w.
