@@ -20,7 +20,7 @@ read as one document type and two recovery runs converge on the same content.
 ## The five parts, in order
 
 1. **Heading + provenance marker** — machine lane. Never edited by hand; the
-   scaffold/distill flow owns them, `verify` enforces them.
+   scaffold/distill flow owns them, the check gate's `structure` issues enforce them.
 2. **Ownership banner** (cosmetic, one to three lines): who owns the truth.
    - code-owned: `> **Distilled — owned by code at \`<path>/\`.** (no spec yet) …`
    - spec-owned: `> **Distilled — owned by \`specs/<slug>\`** (implemented at \`<path>/\`). …`

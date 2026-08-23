@@ -306,7 +306,7 @@ if [ "$CMD" = "render" ]; then
   nrel=0; [ -n "$RELATIONS" ] && nrel=$(printf '%s\n' "$RELATIONS" | grep -c .)
   dropnote=""; [ "$DROPPED" -gt 0 ] && dropnote=" (dropped $DROPPED dangling edge(s))"
   echo "rendered ${#SECTIONS[@]} section(s), $nrel relation(s)$dropnote → ${BLUEPRINT#"$ROOT/"}"
-  echo "next: restamp, then verify + check"
+  echo "next: restamp, then check"
   exit 0
 fi
 

@@ -125,10 +125,10 @@ sections. Semantics:
    the sections the `check` issues point at.
 
 8. **Close the loop.** After render: restamp, then `blueprint-state.sh check`
-   must be free of `relation`/`relation-evidence` issues and
-   `blueprint-slice.sh verify` must still conform (the rendered relations
-   section carries no code markers, so it is invisible to it). No
-   `TODO(prose)` placeholder may remain for sections in scope.
+   must be free of `relation`, `relation-evidence`, and `structure` issues
+   (the rendered relations section carries no code markers, so the structure
+   check never judges it). No `TODO(prose)` placeholder may remain for
+   sections in scope.
 
 ## Report Back
 

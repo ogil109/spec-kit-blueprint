@@ -4,13 +4,12 @@
 # Usage:
 #   blueprint-slice.sh [slice] [--json|--human]
 #     [--root <dir>] [--blueprint <path>] [--scope <dir>] [--all]
-#   blueprint-slice.sh verify   [--json|--human] [--root <dir>] [--blueprint <path>]
 #   blueprint-slice.sh scaffold [--root <dir>] [--blueprint <path>] [--scope <dir>]
 #   blueprint-slice.sh render   --facts <file> [--root <dir>] [--blueprint <path>]
 #
-# The model in one line: structure is machine-written (slice/scaffold, verified
-# by verify), prose and relations are rendered from agent-emitted, machine-
-# validated FACTS (render) — see each lib/ module for its command's contract.
+# The model in one line: structure is machine-written (slice/scaffold; the
+# check gate validates conformance), prose and relations are rendered from
+# agent-emitted, machine-validated FACTS (render).
 # Same repo state + same config => byte-identical output everywhere.
 #
 # This entry only parses arguments and sequences the lib/ modules; every piece
@@ -40,7 +39,7 @@ if [ "$JSON" = "1" ]; then FMT=json
 elif [ "$HUMAN" = "1" ]; then FMT=human
 elif [ -t 1 ]; then FMT=human
 else FMT=json; fi
-case "$CMD" in slice|verify|scaffold|render) ;; *) echo "unknown command: $CMD (only: slice, verify, scaffold, render)" >&2; exit 2 ;; esac
+case "$CMD" in slice|scaffold|render) ;; *) echo "unknown command: $CMD (only: slice, scaffold, render)" >&2; exit 2 ;; esac
 
 
 LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
@@ -70,6 +69,5 @@ source "$LIB/slice-config.sh"      # config readers + slice defaults
 source "$LIB/slice-render.sh"      # facts -> map (exits when CMD=render)
 source "$LIB/slice-covered.sh"     # DOCPAIRS, covered set, holes
 source "$LIB/slice-partition.sh"   # the deterministic partition
-source "$LIB/slice-verify.sh"      # structure conformance (exits when CMD=verify)
 source "$LIB/slice-scaffold.sh"    # skeleton emission (exits when CMD=scaffold)
 source "$LIB/slice-output.sh"      # advisories + slice JSON/human

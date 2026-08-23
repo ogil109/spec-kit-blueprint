@@ -118,6 +118,40 @@ if [ "$CMD" = "check" ]; then
     done < <(relation_markers)
   fi
 
+  # structure (the folded conformance check, decision D2): for every heading
+  # that is BOTH a computed section path and a code/context section in the doc,
+  # the marker sets must match — a marker moved between sections (a merge) is
+  # invisible to coverage because the files stay covered; this is the signal
+  # that catches it. Headings that are not computed paths (hand-authored maps)
+  # are never judged. SOFT: reconcile via scaffold/render or config.
+  if [ -f "$BLUEPRINT" ] && [ -n "${PART:-}" ]; then
+    STRUCT_DIFF="$(
+      {
+        while IFS="$US" read -r kind path rem rule count markers; do
+          [ -n "$kind" ] || continue
+          for m in $markers; do printf 'C%s%s%s%s\n' "$US" "$path" "$US" "$m"; done
+        done <<<"$PART"
+        printf '%s\n' "$DOCPAIRS" | awk -F"$US" -v US="$US" '($1=="code" || $1=="context") { print "D" US $2 US $4 }'
+      } | LC_ALL=C sort | awk -F"$US" -v US="$US" '
+        { key = $2 US $3; side = $1
+          if (side == "C") { comp[key] = 1; chead[$2] = 1 }
+          else             { doc[key] = 1;  dhead[$2] = 1 } }
+        END {
+          for (k in comp) { split(k, a, US)
+            if ((a[1] in dhead) && !(k in doc)) print "missing" US a[1] US a[2] }
+          for (k in doc)  { split(k, a, US)
+            if ((a[1] in chead) && !(k in comp)) print "extra" US a[1] US a[2] }
+        }' | LC_ALL=C sort)"
+    while IFS="$US" read -r what sec mk; do
+      [ -n "$what" ] || continue
+      if [ "$what" = "missing" ]; then
+        add soft structure "$sec" "computed marker absent from the section: $mk" "/speckit.blueprint-index.init --from-code $sec" authored
+      else
+        add soft structure "$sec" "marker not computed for this section (moved/freehand): $mk" "/speckit.blueprint-index.init --from-code $sec" authored
+      fi
+    done <<<"$STRUCT_DIFF"
+  fi
+
   hard_n=0; soft_n=0
   for rec in "${ISSUES[@]:-}"; do [ -n "$rec" ] || continue
     case "$rec" in hard*) hard_n=$((hard_n+1)) ;; soft*) soft_n=$((soft_n+1)) ;; esac

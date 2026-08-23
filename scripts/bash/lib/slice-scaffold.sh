@@ -3,7 +3,8 @@
 # how-this-works header, status TOC, sections + markers + banners +
 # TODO(prose) placeholders), or only the missing additive blocks against an
 # existing map. Byte-identical for the same repo state + config. No-op unless
-# CMD=scaffold; exits when it runs.
+# CMD=scaffold; exits when it runs. Conformance of the written map is
+# validated by the check gate's structure issues.
 # ── scaffold: emit the map (or the missing blocks) — structure by machine ─────
 # Byte-identical for the same repo state + config: no dates, no judgment. The
 # TODO(prose) placeholders are the agent's ONLY edit surface.
@@ -43,8 +44,8 @@ if [ "$CMD" = "scaffold" ]; then
     printf '  reads — banners and prose are cosmetic. To change a code-owned slice:\n'
     printf '  /speckit.specify it as usual; distill collapses its section when the spec ships.\n'
     printf '  STRUCTURE IS COMPUTED (blueprint-slice.sh scaffold), never improvised: to change\n'
-    printf '  the cut, edit blueprint-config.yml and re-derive; blueprint-slice.sh verify\n'
-    printf '  machine-checks conformance.\n-->\n\n'
+    printf '  the cut, edit blueprint-config.yml and re-derive; the check gate validates\n'
+    printf '  structural conformance.\n-->\n\n'
     printf '## Table of Contents\n\n'
     while IFS="$US" read -r kind path rem rule count markers; do
       [ -n "$kind" ] || continue

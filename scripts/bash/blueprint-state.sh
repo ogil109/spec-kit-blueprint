@@ -83,6 +83,18 @@ fi
 
 source "$LIB/common-git.sh"        # git + marker plumbing, US, jesc
 source "$LIB/state-frontier.sh"    # frontier, provenance, next action
+# the structure machinery needs a map to judge; a bare repo's check still runs
+# (frontier + drift), with coverage and structure silent.
+if [ "$CMD" = "check" ] && [ -n "$BLUEPRINT" ] && [ -f "$BLUEPRINT" ]; then
+  # the gate's structure check recomputes the partition and compares it to the
+  # map on the INTERSECTION of computed section paths and doc headings — hand-
+  # authored maps whose headings are not computed paths are never flagged.
+  STRUCT=1; SCOPE=""; ALL=0; FACTS=""
+  CFG="$CFG"                        # already validated by common-config
+  source "$LIB/slice-config.sh"     # partition settings + defaults
+  source "$LIB/slice-covered.sh"    # DOCPAIRS + spec-owned subtraction + holes
+  source "$LIB/slice-partition.sh"  # PART: the computed structure
+fi
 source "$LIB/state-check.sh"       # the gate (exits when CMD=check)
 source "$LIB/state-restamp.sh"     # baseline refresh (exits when CMD=restamp)
 source "$LIB/state-output.sh"      # next/status presentation

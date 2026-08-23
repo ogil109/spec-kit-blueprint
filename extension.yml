@@ -59,10 +59,10 @@ provides:
       description: "PowerShell port of the coherence gate, parity-verified against the Bash oracle"
     - name: blueprint-slice
       file: scripts/bash/blueprint-slice.sh
-      description: "Deterministic brownfield partitioner: computes the section set from git ls-files + checked-in config, writes the map skeleton itself (scaffold), and machine-checks that a written map structurally conforms (verify)"
+      description: "Deterministic brownfield partitioner: computes the section set from git ls-files + checked-in config and writes the map skeleton itself (scaffold); the check gate validates structural conformance"
     - name: blueprint-slice-ps1
       file: scripts/powershell/blueprint-slice.ps1
-      description: "PowerShell port of the partitioner (slice/scaffold/verify), byte-parity-verified against the bash oracle in CI"
+      description: "PowerShell port of the partitioner (slice/scaffold/render), byte-parity-verified against the bash oracle in CI"
 
 tags:
   - "blueprint"

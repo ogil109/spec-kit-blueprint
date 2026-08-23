@@ -178,13 +178,13 @@ violations are listed wholesale and nothing is written). The split is strict: th
 the machine's — at render time and forever after via `check`'s
 `relation`/`relation-evidence` decay issues. No evidence, no claim.
 
-Conformance is **machine-checked, not an honor system**: `blueprint-slice.sh verify`
-recomputes the partition and diffs it against the (section, marker) structure actually
-written in the map — an agent that merged, dropped, renamed, or invented a section
-produces a deterministic pair diff and a non-zero exit. And the `check` gate closes the
-loop over time: its coverage scan spans **all** top-level directories, so a tree the
-on-ramp missed (or code added later) is flagged `unmapped` rather than staying
-invisible.
+Conformance is **machine-checked, not an honor system**: the `check` gate recomputes
+the partition on every run and raises `structure` issues for any marker moved between
+computed sections or absent from one — the merge/misplacement class that coverage
+alone cannot see, because the files stay covered. The same gate's coverage scan spans
+**all** top-level directories, so a tree the on-ramp missed (or code added later) is
+flagged `unmapped` rather than staying invisible. Hand-authored maps whose headings
+are not computed paths are never judged by the structure check.
 
 ```console
 $ blueprint-slice.sh
@@ -241,7 +241,7 @@ specify extension add blueprint-index \
 #                  those facts — they cannot contradict, and bad claims are
 #                  rejected wholesale before a byte lands
 #      restamp   → git baselines recorded on every section
-#      verify+check → structure conformance + coverage + relations machine-checked
+#      check     → structure conformance + coverage + relations machine-checked
 
 # 3. Add the gate to CI — done. The map now defends itself.
 bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh check
@@ -339,7 +339,7 @@ proves the loop sequences specs correctly (parking, stop bounds); the agent's au
 - Harness loop: **tested** — `tests/harness_loop_test.sh`.
 - PowerShell ports (`scripts/powershell/blueprint-state.ps1`, `blueprint-slice.ps1`):
   **byte-parity with the bash oracles enforced in CI** — `slice --json`, `scaffold`,
-  `verify`, and `check --json` diffed over shared fixtures, exit codes included
+  `render`, and `check --json` diffed over shared fixtures, exit codes included
   (pwsh 7.5, Linux). **Windows itself is still unverified** (path separators,
   git-for-Windows), so that's the open gap.
 

@@ -157,16 +157,12 @@ guaranteed by never letting you write structure at all:
    would be lost non-determinism the next run can't reproduce.
 
 5. **Close the loop — conformance is machine-checked.** Run restamp (step 7
-   above), then two oracles must both pass:
-   - `blueprint-slice.sh verify` — recomputes the partition and diffs it against
-     the (section, kind, marker) structure you actually wrote. A merged,
-     dropped, renamed, regrouped, or invented section is a deterministic pair
-     diff and exit 1. Rule 2 is not an honor system.
-   - `blueprint-state.sh check` — the scoped area must report **no `unmapped`
-     issues**.
-   Also confirm no `TODO(prose)` placeholder remains (`grep -c 'TODO(prose)'`).
-   On failure, fix the structure (or the config, then re-derive) — never
-   silence the oracles.
+   above), then `blueprint-state.sh check` must pass with **no `unmapped` and
+   no `structure` issues** for the scoped area: the gate recomputes the
+   partition and flags any marker moved between computed sections or absent
+   from one (rule 2 is not an honor system). Also confirm no `TODO(prose)`
+   placeholder remains (`grep -c 'TODO(prose)'`). On failure, fix the
+   structure (or the config, then re-derive) — never silence the gate.
 
 (Stage 2 is inside step 2: the recovery pass covers digests AND relations in
 one facts file — see `speckit.blueprint-index.recover` for the full procedure,
@@ -177,7 +173,7 @@ including the DSM read: layering, cycles, hub verdicts.)
 A brownfield repo with real design docs should consume **both** — this is the
 Reflexion-Models division of labor: the source model (code) is authoritative for
 what exists; the high-level model (docs) contributes names, intent, and the
-backlog. Run the brownfield on-ramp above first (scaffold → prose → verify +
+backlog. Run the brownfield on-ramp above first (scaffold → facts → render →
 check), then reconcile the docs into it with exactly three moves — each lands in
 a lane that keeps the on-ramp reproducible:
 
@@ -202,11 +198,11 @@ a lane that keeps the on-ramp reproducible:
    guardrail. This is the payoff of hybrid seeding: the map comes out with a
    real backlog, so `next` moves from idle to `specify` and the waterfall has
    work to pull. Carry no marker on these sections — they are outside the
-   slicer's jurisdiction (verify ignores them) until a spec ships and `distill`
+   slicer's jurisdiction (the structure check ignores them) until a spec ships and `distill`
    settles them.
 
-Close the loop as usual: `verify` (unaffected by detailed additions) + `check`
-+ no `TODO(prose)` leftovers.
+Close the loop as usual: `check` (its structure issues are unaffected by
+detailed additions) + no `TODO(prose)` leftovers.
 
 ## Report Back
 
@@ -226,4 +222,5 @@ Close the loop as usual: `verify` (unaffected by detailed additions) + `check`
 - **`--from-code` structure is machine-written, never improvised:** `blueprint-slice.sh
   scaffold` writes the skeleton; your judgment goes into the `TODO(prose)` placeholders
   and, when the cut is wrong, into `blueprint-config.yml` (then re-scaffold) — never
-  into freehand structure. `verify` enforces this after the fact.
+  into freehand structure. The check gate's `structure` issues enforce this
+  after the fact.

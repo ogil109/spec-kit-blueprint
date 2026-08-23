@@ -2,7 +2,7 @@
 # Byte-parity between the bash oracles and their PowerShell ports.
 #
 # The PS ports promise OUTPUT PARITY, not just behavioral similarity: for the
-# same repo state + config, `slice --json`, `scaffold`, `verify`, and
+# same repo state + config, `slice --json`, `scaffold`, `render`, and
 # `check --json` must emit byte-identical text (and identical exit codes).
 # A parity diff has already caught real bugs — most recently PS 7.5's native
 # command output sorting culture-aware where bash sorts bytewise (LC_ALL=C).
@@ -65,17 +65,23 @@ BP="$R/.specify/memory/blueprint.md"
 bash "$BS" scaffold "${A[@]}" > "$BP"
 git -C "$R" add -A; git -C "$R" commit -qm map
 bash "$BO" restamp --root "$R" --blueprint "$BP" >/dev/null 2>&1
-par "verify --json (conforming)"   verify "${A[@]}"
-par "verify --human (conforming)"  verify "${A[@]}" --human
+chk() { # label: state-oracle check parity on the current map
+  local label="$1"; shift
+  local b p
+  b="$(bash "$BO" check --json "$@" 2>/dev/null; echo "rc=$?")"
+  p="$(pwsh -NoProfile "$PSST" check --json "$@" 2>/dev/null; echo "rc=$?")"
+  if [ "$b" = "$p" ]; then ok "$label"; else bad "$label" "$(diff <(echo "$b") <(echo "$p") | head -6)"; fi
+}
+chk "check --json (conforming map, structure clean)" --root "$R" --blueprint "$BP"
 mkdir -p "$R/newmod"; for i in 1 2 3; do printf 'x\n' > "$R/newmod/n$i.py"; done
 git -C "$R" add -A; git -C "$R" commit -qm newmod
 par "slice --json (respect-existing + holes)" slice "${A[@]}" --json
 par "scaffold (additive: only newmod)"        scaffold "${A[@]}"
-par "verify --json (structure drift, exit 1)" verify "${A[@]}"
+chk "check --json (missing section -> unmapped, no structure)" --root "$R" --blueprint "$BP"
 
-# 4. tampered verify: merged section -> identical pair diff both sides
+# 4. tampered map: renamed marker path -> identical structure issues both sides
 sed 's|<!-- blueprint:code path=tests sha=|<!-- blueprint:code path=tests_MOVED sha=|' "$BP" > "$BP.t"
-par "verify --json (tampered marker)" verify --root "$R" --blueprint "$BP.t"
+chk "check --json (tampered marker -> structure issues)" --root "$R" --blueprint "$BP.t"
 rm -f "$BP.t"
 
 # 5. the gate: check --json parity, incl. relations validation
@@ -119,7 +125,7 @@ pwsh -NoProfile "$PSSL" scaffold --root "$R" --blueprint "$M2" > "$M2"
 b="$(bash "$BS" render --root "$R" --blueprint "$M1" --facts "$TMP/facts.txt" 2>&1; echo "rc=$?")"
 p="$(pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/facts.txt" 2>&1; echo "rc=$?")"
 { [ "$(echo "$b" | tail -1)" = "$(echo "$p" | tail -1)" ] && diff -q "$M1" "$M2" >/dev/null; }
-if [ $? -eq 0 ]; then ok "render (prose + relations + concern) byte-identical"; else bad "render byte parity" "$(diff "$M1" "$M2" | head -6)"; fi
+if [ $? -eq 0 ]; then ok "render (prose + relations) byte-identical"; else bad "render byte parity" "$(diff "$M1" "$M2" | head -6)"; fi
 
 # partial repair on top: one block re-rendered, other edges preserved — identical merge
 cat > "$TMP/facts2.txt" <<'FEOF'
