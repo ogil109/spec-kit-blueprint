@@ -128,7 +128,7 @@ reviews the PR. The `kind` field exists so CI never has to guess which is which.
 | `speckit.blueprint-index.status` | Read-only dashboard: detailed / settled / context / unmanaged sections, drift, where each spec stands. |
 | `speckit.blueprint-index.distill` | Collapse a finished spec's section to a digest + pointer; stamp the slice's code baseline. |
 | `speckit.blueprint-index.remap` | Re-derive a section from current code + refresh its git baseline (resync after out-of-band changes). |
-| `speckit.blueprint-index.recover` | Stage-2 architecture recovery: an expert agent derives how the subsystems relate — dependency edges, layering, cycles, cross-cutting concerns — as evidence-anchored relation markers the gate validates. |
+| `speckit.blueprint-index.recover` | Stage-2 architecture recovery: an expert agent derives how the subsystems relate — dependency and cross-cutting edges, layering, cycles — as evidence-anchored relation markers the gate validates. |
 
 Plus the script-level oracles the commands and CI share: `blueprint-state.sh check` (the
 tiered gate), `blueprint-state.sh restamp` (deterministic baseline refresh), and
@@ -169,7 +169,7 @@ new code shows up as new proposed sections, and an existing section that outgrew
 **Stage 2 — the intelligence layer.** The deterministic partition is the *input* to a
 dedicated architecture-recovery agent (`recover`): expert judgment decides what each
 subsystem **is** and how they **relate** — `uses` edges, layering, cycles, and
-`crosscuts` concerns (which no directory cut can express). Its output is a **facts
+`crosscuts` edges for facilities that thread the map. Its output is a **facts
 file**, and `blueprint-slice.sh render` writes both the digests and the
 `<!-- blueprint:relation … -->` markers from it after validating every claim
 (sections exist, evidence tracked and under the right markers, endpoints managed —
@@ -236,7 +236,7 @@ specify extension add blueprint-index \
 #    Under the hood, in order (all shipped, nothing to configure first):
 #      scaffold  → the map is MACHINE-WRITTEN: sections, markers, TOC, banners
 #      recover   → ONE agent pass emits validated FACTS (role + digest facets +
-#                  relation edges + concerns, every claim evidence-anchored)
+#                  relation edges, every claim evidence-anchored)
 #      render    → the machine writes the prose AND the relation markers from
 #                  those facts — they cannot contradict, and bad claims are
 #                  rejected wholesale before a byte lands

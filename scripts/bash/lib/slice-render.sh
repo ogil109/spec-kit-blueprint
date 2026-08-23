@@ -2,8 +2,8 @@
 # lib/slice-render.sh — `render`: parse + validate a facts file (every claim
 # machine-checked: sections exist, evidence tracked and under the right
 # markers, #patterns present at HEAD, endpoints managed, no duplicates), then
-# write section prose, TOC entries, concern sections, and the merged relations
-# home from that single source. No-op unless CMD=render; exits when it runs.
+# write section prose, TOC entries, and the merged relations home from one
+# validated source. No-op unless CMD=render; exits when it runs.
 # Expects: ROOT, BLUEPRINT, FACTS, US, current_sha (lib/common-git.sh).
 # ── render: deterministic prose + relations from a validated FACTS file ───────
 # The agent's single output is a line-based facts file; the renderer validates
@@ -17,7 +17,6 @@
 #   facet <Label> | <text> | <evidence-path>
 #   neighbor <uses|crosscuts> | <to-section> | <why> | <evidence-path>
 #   note <free text>            (repeatable)
-#   concern <name>              (creates/replaces a context section; space-free name)
 # '#' lines and blanks are ignored. Sections not named keep their current prose.
 if [ "$CMD" = "render" ]; then
   [ -n "$FACTS" ] && [ -f "$FACTS" ] || { echo "render: --facts <file> required" >&2; exit 2; }
@@ -66,7 +65,7 @@ if [ "$CMD" = "render" ]; then
     NR == 1 { if ($0 != "blueprint-facts 1") { print "E" US NR US "first line must be: blueprint-facts 1" }; next }
     /^[[:space:]]*(#|$)/ { next }
     /^section /  { s = $0; sub(/^section /, "", s);  print "S" US s; next }
-    /^concern /  { s = $0; sub(/^concern /, "", s);  print "C" US s; next }
+    /^concern /  { print "E" US NR US "the concern directive was removed — model cross-cutting facilities as sections with crosscuts edges"; next }
     /^role /     { s = $0; sub(/^role /, "", s);     print "R" US s; next }
     /^note /     { s = $0; sub(/^note /, "", s);     print "T" US s; next }
     /^facet /    { s = $0; sub(/^facet /, "", s); n = split(s, a, / \| /)
@@ -79,8 +78,8 @@ if [ "$CMD" = "render" ]; then
   ' "$FACTS")"
 
   # semantic validation + collection
-  ERRS=(); CUR=""; CURKIND=""   # CURKIND: section|concern
-  SECTIONS=(); CONCERNS=(); EDGES=()   # EDGES: from US kind US to US why US ev
+  ERRS=(); CUR=""
+  SECTIONS=(); EDGES=()   # EDGES: from US kind US to US why US ev
   BLOCKS="$(mktemp)"; NEWDOC="$(mktemp)"; trap 'rm -f "$BLOCKS" "$NEWDOC"' EXIT
   err() { ERRS+=("$1"); }
   flushblock() { # emit accumulated block for CUR into BLOCKS
@@ -89,7 +88,6 @@ if [ "$CMD" = "render" ]; then
     {
       printf '@@BEGIN%s%s\n' "$US" "$CUR"
       printf 'ROLE%s%s\n' "$US" "$CURROLE"
-      printf 'KIND%s%s\n' "$US" "$CURKIND"
       printf 'STATE%s%s\n' "$US" "$CURSTATE"
       local i
       for i in "${CURFACETS[@]:-}"; do [ -n "$i" ] && printf 'FACET%s%s\n' "$US" "$i"; done
@@ -97,7 +95,7 @@ if [ "$CMD" = "render" ]; then
       printf '@@END\n'
     } >> "$BLOCKS"
   }
-  newcur() { CUR="$1"; CURKIND="$2"; CURROLE=""; CURSTATE="$3"; CURFACETS=(); CURNOTES=(); }
+  newcur() { CUR="$1"; CURROLE=""; CURSTATE="$2"; CURFACETS=(); CURNOTES=(); }
   CURROLE=""; CURSTATE=""; CURFACETS=(); CURNOTES=()
   while IFS= read -r rec; do
     [ -n "$rec" ] || continue
@@ -105,43 +103,31 @@ if [ "$CMD" = "render" ]; then
     case "$tag" in
       E) err "facts line ${rest%%"$US"*}: ${rest#*"$US"}" ;;
       S) flushblock
-         dup=0; for x in "${SECTIONS[@]:-}" "${CONCERNS[@]:-}"; do [ "$x" = "$rest" ] && dup=1; done
+         dup=0; for x in "${SECTIONS[@]:-}"; do [ "$x" = "$rest" ] && dup=1; done
          [ "$dup" = 1 ] && err "duplicate block for '$rest' — a facts file declares each section once"
          st="$(sec_state "$rest")"
          case "$st" in
-           code|context) SECTIONS+=("$rest"); newcur "$rest" section "$st" ;;
-           "") err "section '$rest' is not on the map (scaffold first; check the heading)"; newcur "$rest" section code ;;
-           *)  err "section '$rest' is $st-owned — render only writes code/context sections"; newcur "$rest" section "$st" ;;
+           code|context) SECTIONS+=("$rest"); newcur "$rest" "$st" ;;
+           "") err "section '$rest' is not on the map (scaffold first; check the heading)"; newcur "$rest" code ;;
+           *)  err "section '$rest' is $st-owned — render only writes code/context sections"; newcur "$rest" "$st" ;;
          esac ;;
-      C) flushblock
-         dup=0; for x in "${SECTIONS[@]:-}" "${CONCERNS[@]:-}"; do [ "$x" = "$rest" ] && dup=1; done
-         [ "$dup" = 1 ] && err "duplicate block for '$rest' — a facts file declares each section once"
-         case "$rest" in
-           *" "*) err "concern '$rest' must be a space-free name" ;;
-           *) CONCERNS+=("$rest") ;;
-         esac
-         newcur "$rest" concern context ;;
-      R) [ -n "$CUR" ] || { err "role before any section/concern"; continue; }
+      R) [ -n "$CUR" ] || { err "role before any section"; continue; }
          CURROLE="$rest" ;;
-      T) [ -n "$CUR" ] || { err "note before any section/concern"; continue; }
+      T) [ -n "$CUR" ] || { err "note before any section"; continue; }
          CURNOTES+=("$rest") ;;
-      F) [ -n "$CUR" ] || { err "facet before any section/concern"; continue; }
+      F) [ -n "$CUR" ] || { err "facet before any section"; continue; }
          ev="${rest##*"$US"}"
-         juris=""; [ "$CURKIND" = "section" ] && juris="$CUR"
-         validate_ev "'$CUR' facet" "$ev" "$juris"
+         validate_ev "'$CUR' facet" "$ev" "$CUR"
          CURFACETS+=("$rest") ;;
-      N) [ -n "$CUR" ] || { err "neighbor before any section/concern"; continue; }
+      N) [ -n "$CUR" ] || { err "neighbor before any section"; continue; }
          kind="${rest%%"$US"*}"; r2="${rest#*"$US"}"
          to="${r2%%"$US"*}"; r3="${r2#*"$US"}"
          why="${r3%%"$US"*}"; ev="${r3#*"$US"}"
          case "$kind" in uses|crosscuts) ;; *) err "'$CUR' neighbor kind must be uses|crosscuts: $kind"; continue ;; esac
-         tost="$(sec_state "$to")"; tok=0
-         [ -n "$tost" ] && tok=1
-         for c in "${CONCERNS[@]:-}"; do [ "$c" = "$to" ] && tok=1; done
-         [ "$tok" = 1 ] || err "'$CUR' neighbor endpoint not on the map: $to"
-         juris=""
-         if [ "$kind" = "uses" ] && [ "$CURKIND" = "section" ]; then juris="$CUR"
-         elif [ "$kind" = "crosscuts" ] && [ -n "$tost" ]; then juris="$to"; fi
+         tost="$(sec_state "$to")"
+         [ -n "$tost" ] || err "'$CUR' neighbor endpoint not on the map: $to"
+         juris="$CUR"
+         if [ "$kind" = "crosscuts" ]; then juris="$to"; [ -z "$tost" ] && juris=""; fi
          validate_ev "'$CUR' $kind-edge" "$ev" "$juris"
          EDGES+=("$CUR$US$kind$US$to$US$why$US$ev") ;;
     esac
@@ -163,7 +149,6 @@ if [ "$CMD" = "render" ]; then
   # only ever flag them; repair cannot re-assert a section that is gone).
   OWNED="$US"
   for s in "${SECTIONS[@]:-}"; do [ -n "$s" ] && OWNED="$OWNED$s$US"; done
-  for c in "${CONCERNS[@]:-}"; do [ -n "$c" ] && OWNED="$OWNED$c$US"; done
   DROPPED=0
   while IFS= read -r ex; do
     [ -n "$ex" ] || continue
@@ -172,12 +157,7 @@ if [ "$CMD" = "render" ]; then
     exto="${exrest2%%"$US"*}"
     case "$OWNED" in *"$US$exfrom$US"*) continue ;; esac        # facts own this from-section
     tost1="$(sec_state "$exfrom")"; tost2="$(sec_state "$exto")"
-    ok2=1
-    [ -n "$tost1" ] || ok2=0
-    if [ -z "$tost2" ]; then
-      case "$OWNED" in *"$US$exto$US"*) ;; *) ok2=0 ;; esac
-    fi
-    [ "$ok2" = 1 ] || { DROPPED=$((DROPPED+1)); continue; }
+    { [ -n "$tost1" ] && [ -n "$tost2" ]; } || { DROPPED=$((DROPPED+1)); continue; }
     EDGES+=("$ex")
   done < <(awk -v US="$US" '
     /^## / { inrel = ($0 == "## Architecture — subsystem relations"); next }
@@ -236,7 +216,6 @@ if [ "$CMD" = "render" ]; then
       split(line, a, US)
       if (a[1] == "@@BEGIN")      { h = a[2]; nfacets[h] = 0; nnotes[h] = 0; known[h] = 1; kn[++nkn] = h }
       else if (a[1] == "ROLE")    { role[h] = a[2] }
-      else if (a[1] == "KIND")    { bkind[h] = a[2] }
       else if (a[1] == "STATE")   { state[h] = a[2] }
       else if (a[1] == "FACET")   { facets[h, ++nfacets[h]] = a[2] US a[3] US a[4] }
       else if (a[1] == "NOTE")    { notes[h, ++nnotes[h]] = a[2] }
@@ -264,7 +243,7 @@ if [ "$CMD" = "render" ]; then
     if (line ~ /^- `/) {
       p = line; sub(/^- `/, "", p); sub(/`.*$/, "", p)
       toc_seen = 1; toc_present[p] = 1
-      if (p in known && bkind[p] == "section") {
+      if (p in known) {
         rem = (line ~ / \(remainder\)/) ? " (remainder)" : ""
         status = (state[p] == "context") ? "**context**" : "**code-owned**"
         print "- `" p "`" rem " — " first_sentence(role[p]) "; " status
@@ -272,14 +251,14 @@ if [ "$CMD" = "render" ]; then
       }
     }
     # the map indexes itself: a facts block with no TOC entry (a section
-    # re-onboarded additively, a concern created by render) is appended to the
+    # re-onboarded additively) is appended to the
     # TOC when the entry list ends — otherwise the index silently drifts from
     # the content it indexes.
     if (in_toc && toc_seen && !toc_flushed && line ~ /^[[:space:]]*$/) {
       for (i = 1; i <= nkn; i++) {
         p = kn[i]
         if (!(p in toc_present)) {
-          status = (bkind[p] == "concern" || state[p] == "context") ? "**context**" : "**code-owned**"
+          status = (state[p] == "context") ? "**context**" : "**code-owned**"
           print "- `" p "` — " first_sentence(role[p]) "; " status
         }
       }
@@ -288,13 +267,12 @@ if [ "$CMD" = "render" ]; then
     if (line ~ /^## /) {
       in_toc = ($0 == "## Table of Contents")
       h = line; sub(/^##[[:space:]]+/, "", h); sub(/ \(remainder\)$/, "", h)
-      if (mode == "skiprel" || mode == "skipconcern") mode = "copy"   # region ended
-      if (h == relhead_name()) { if (rels != "") { printf "%s", rtext; relprinted = 1; mode = "skiprel"; next } }
-      if (h in known && bkind[h] == "concern") { printf "%s", concern_block(h); mode = "skipconcern"; next }
-      if (h in known && bkind[h] == "section") { print line; mode = "header"; cur = h; next }
+      if (mode == "skiprel") mode = "copy"   # region ended
+      if (h == relhead_name()) { if (rels != "") { printf "%s", rtext; mode = "skiprel"; next } }
+      if (h in known) { print line; mode = "header"; cur = h; next }
       print line; mode = "copy"; next
     }
-    if (mode == "skiprel" || mode == "skipconcern") next
+    if (mode == "skiprel") next
     if (mode == "header") {
       if (line ~ /^<!-- blueprint:/ || line ~ /^> /) { print line; next }
       mode = "prose"   # first non-header line: swallow until ---
@@ -306,38 +284,13 @@ if [ "$CMD" = "render" ]; then
     print line
   }
   function relhead_name() { return "Architecture — subsystem relations" }
-  function concern_block(h,   out) {
-    out = "## " h "\n<!-- blueprint:section state=context -->\n"
-    out = out render_body(h)
-    out = out "\n---\n\n"
-    return out
-  }
   END {
     # a section without a terminating --- (hand-grown map): keep its body
     if (mode == "prose") printf "%s", render_body(cur)
   }
   ' "$BLUEPRINT" > "$NEWDOC"
 
-  # append new concern sections + relations section when they did not exist yet
-  for c in "${CONCERNS[@]:-}"; do
-    [ -n "$c" ] || continue
-    grep -qE "^## $c( |$)" "$BLUEPRINT" || {
-      awk -v US="$US" -v blocks="$BLOCKS" -v target="$c" '
-        BEGIN {
-          while ((getline line < blocks) > 0) {
-            split(line, a, US)
-            if (a[1] == "@@BEGIN") h = a[2]
-            else if (h == target && a[1] == "ROLE")  role = a[2]
-            else if (h == target && a[1] == "FACET") facets[++nf] = a[2] US a[3] US a[4]
-            else if (h == target && a[1] == "NOTE")  notes[++nn] = a[2]
-          }
-          printf "## %s\n<!-- blueprint:section state=context -->\n\n%s%s\n", target, role, (nf ? " At a glance:" : "")
-          if (nf) { printf "\n"; for (i = 1; i <= nf; i++) { split(facets[i], p, US); printf "- **%s** — %s\n", p[1], p[2] } }
-          if (nn) { printf "\n"; for (i = 1; i <= nn; i++) print notes[i] }
-          printf "\n---\n\n"
-        }' >> "$NEWDOC"
-    }
-  done
+  # append the relations section when it did not exist yet
   if [ -n "$RELATIONS" ] && ! grep -q '^## Architecture — subsystem relations$' "$BLUEPRINT"; then
     {
       printf '## Architecture — subsystem relations\n<!-- blueprint:section state=context -->\n\n'
@@ -352,7 +305,7 @@ if [ "$CMD" = "render" ]; then
   mv "$NEWDOC" "$BLUEPRINT"; trap 'rm -f "$BLOCKS"' EXIT
   nrel=0; [ -n "$RELATIONS" ] && nrel=$(printf '%s\n' "$RELATIONS" | grep -c .)
   dropnote=""; [ "$DROPPED" -gt 0 ] && dropnote=" (dropped $DROPPED dangling edge(s))"
-  echo "rendered ${#SECTIONS[@]} section(s), ${#CONCERNS[@]} concern(s), $nrel relation(s)$dropnote → ${BLUEPRINT#"$ROOT/"}"
+  echo "rendered ${#SECTIONS[@]} section(s), $nrel relation(s)$dropnote → ${BLUEPRINT#"$ROOT/"}"
   echo "next: restamp, then verify + check"
   exit 0
 fi
