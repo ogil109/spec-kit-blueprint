@@ -46,7 +46,7 @@
 
 ## Phase 3 — Validation (FR-007/008/010)
 
-- [ ] T011 Full suites + parity green; suite-count deltas recorded in the
+- [x] T011 Full suites + parity green; suite-count deltas recorded in the
       affected inventory entries (FR-008).
 - [ ] T012 Dual-repo e2e: full brownfield on-ramp + lifecycle drills on
       pandas AND scikit-learn, gate green at every checkpoint (SC-007);
