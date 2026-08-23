@@ -1,12 +1,11 @@
 # Section anatomy — the one shape every settled section has
 
-**How this contract is enforced**: in the brownfield lanes (`init --from-code`,
-`recover`, `remap`) the agent does not write this prose by hand — it emits a
-**facts file** (role / facets / neighbors / notes; see the recover command) and
-`blueprint-slice.sh render` writes the prose *and* the relation markers from
-it, after machine-validating every anchor. This file defines what good facts
-contain and the shape the renderer produces; `distill` (spec-owned digests)
-still writes to this shape directly.
+**How this contract is enforced**: the agent does not write this prose by
+hand in ANY lane — `init --from-code`, `recover`, `remap`, and `distill` all
+emit a **facts file** (role / facets / neighbors / notes; see the recover
+command) and `blueprint-slice.sh render` writes the prose *and* the relation
+markers from it, after machine-validating every anchor. This file defines what
+good facts contain and the shape the renderer produces.
 
 This is the shared contract for the **prose lane**: every settled section of the
 blueprint has the same anatomy no matter which command wrote it (`init
@@ -32,13 +31,19 @@ read as one document type and two recovery runs converge on the same content.
    subsystem's shape without opening the owner.
 5. **Closer** — an explicit "see the owner, don't restate" line:
    - code-owned: `For exact behavior, read the code under \`<path>/\`. Do not restate it here.`
-   - spec-owned: `For every requirement, threshold, and entity shape, see \`specs/<slug>/spec.md\`. Do not restate those details here.`
+   - spec-owned: `For every requirement, threshold, and entity shape, see \`specs/<slug>/spec.md\`. Do not restate those details here — this section indexes the spec.`
+
+   The renderer writes the closer from the section's state and `owner=`
+   attribute; it is never authored.
 
 ## Evidence rules (what makes a digest bullet valid)
 
 - **Every bullet cites at least one anchor that exists**: a file or entry point
-  under the section's own markers (code-owned), or a spec section reference
-  (spec-owned). No anchor → no bullet.
+  under the section's own markers, or — for a spec-owned (distilled) section —
+  a path under its owning `specs/<slug>/` directory (e.g.
+  `specs/<slug>/spec.md#SC-001`). The renderer enforces this jurisdiction at
+  render time and the gate re-checks `#pattern` anchors forever. No anchor →
+  no bullet.
 - **Design docs may be *secondary* anchors** (hybrid on-ramp): a bullet may
   additionally cite the architecture doc that names or motivates the facet, but
   a code-owned bullet's primary anchor is always a real path — and where docs

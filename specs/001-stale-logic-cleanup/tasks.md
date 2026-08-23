@@ -34,7 +34,7 @@
 - [x] T008 [D8] Remove `docs/deterministic-onramp.md` after salvaging the
       still-current essence into README; audit `docs/autonomous-harness.md`
       claims against current behavior (fix or keep).
-- [ ] T009 [D4 + FR-006] Working-docs zero-contradiction pass: README,
+- [x] T009 [D4 + FR-006] Working-docs zero-contradiction pass: README,
       CONTRIBUTING, all command files, templates, config comments — every
       claim checked against behavior; port-contract keep-rationale recorded in
       the inventory.

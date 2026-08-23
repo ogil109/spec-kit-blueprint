@@ -76,7 +76,7 @@ PR's own range rather than the whole history.
 The suites cannot catch what their fixtures never vary. Before cutting a
 release, run the full brownfield on-ramp against a **large real repository**
 (shallow-clone something like pandas): install with `--dev`, scaffold, author
-facts with `#pattern` edges, render, restamp, verify + check, then the drills
+facts with `#pattern` edges, render, restamp, check, then the drills
 — stale/heal, pattern rot (edit a single-hit pattern away), per-block repair,
 additive re-onboard, `--strict`. Three shipped bugs were found exactly this
 way (size-dependent SIGPIPE inversion, silent duplicate-block last-wins, TOC
@@ -93,11 +93,11 @@ drift after re-onboarding) after 120+ asserts were green.
   `tests/portability_lint_test.sh` enforces them statically.
 - Add or update a test for any change to `check`/`next`/`status`/`restamp` behavior.
 - **Help wanted:** the PowerShell port (`scripts/powershell/blueprint-state.ps1`) is
-  execution-verified at output parity with the Bash oracle on **pwsh 7.4 / Linux**, but
+  execution-verified at output parity with the Bash oracle on **pwsh 7.5 / Linux**, but
   **not on Windows** — path separators and git-for-Windows are the untested surface. A
   Windows maintainer to confirm it there is very welcome.
 - Keep the ports at parity — and parity means **byte parity**: `tests/ps_parity_test.sh`
-  diffs `slice --json`, `scaffold`, `verify`, and `check --json` between bash and
+  diffs `slice --json`, `scaffold`, `render`, and `check --json` between bash and
   PowerShell over the same fixtures, exit codes included. Divergences have caught real
   bugs on both sides (most recently PS 7.5 sorting native-command output culture-aware
   where bash sorts bytewise). CI runs the parity suite on every push.

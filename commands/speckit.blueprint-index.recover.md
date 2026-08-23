@@ -79,7 +79,7 @@ sections. Semantics:
 1. **Inputs.** Run
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh slice --all --json`
    (or the PowerShell port) for the authoritative section set, and read the blueprint. Never add, drop,
-   or resize sections — `verify` will catch you if you do.
+   or resize sections — the check gate's `structure` issues will catch you if you do.
 
 2. **Derive candidates mechanically before judging.** For each code-owned
    section, scan its files' imports/includes/references for paths landing in

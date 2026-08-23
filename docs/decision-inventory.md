@@ -8,7 +8,8 @@ describes the current codebase; history lives in version control.
 
 **Verdicts**: `live` (rationale still holds) · `superseded` (a later mechanism
 replaced the need) · `lapsed` (the motivating condition no longer exists) ·
-`unknown` (origin not reconstructible).
+`unfounded` (claimed but never implemented) · `unknown` (origin not
+reconstructible).
 **Dispositions**: `keep` · `rework(D#)` · `remove(D#)` · `defer(#issue)` —
 D-numbers reference `specs/001-stale-logic-cleanup/research.md`.
 
@@ -79,6 +80,7 @@ D-numbers reference `specs/001-stale-logic-cleanup/research.md`.
 |---|---|---|---|
 | Keys: `blueprint.path`, `distill.require_confirmation`, `slice.{max_files,min_files,boundary_files,context_dirs,pin_dirs}`, `coverage.exclude` | Each added with its feature; all exercised | live | keep |
 | Parser accepts unknown keys/typos/misindents silently | Predates every validation surface (config once held two cosmetic keys) | lapsed | rework(D1): validate at load, both ports |
+| Config-template claim of layering (`blueprint-config.local.yml`, `SPECKIT_BLUEPRINT_*` env) | Aspirational header comment; no script ever read either source | unfounded (never implemented) | remove: claim deleted from the template (principle 3) |
 | Defaults as elicitation devices (400/3, boundary list, docs context) | Zero-friction first cut; the concrete partition is the questionnaire | live | keep (advisory/checkpoint ideas = future feature, out of scope) |
 
 ## Marker vocabulary
