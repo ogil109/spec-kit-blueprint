@@ -81,6 +81,26 @@ import json,sys
 assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='structure']
 " >/dev/null 2>&1; assert "structure check: spec-owned src/io outside slicer jurisdiction" $? ""
 
+# lane parity (D3): the distilled section is authored through the SAME facts
+# flow as everything else — spec-anchored evidence is inside its jurisdiction,
+# and its edges are thereby repairable (the old GAP-6). A shipped spec is
+# committed; evidence validation happens at HEAD.
+git -C "$R" add -A; git -C "$R" commit -qm "ship 001-io-v2"
+cat > "$TMP/distill.facts" <<'EOF'
+blueprint-facts 1
+section src/io
+role IO subsystem shipped by spec 001-io-v2. Reads and writes the exchange files.
+facet Contract | requirements live in the shipped spec | specs/001-io-v2/spec.md#spec
+neighbor uses | src/core | parsing primitives | src/io/i1.py
+EOF
+bash "$SLICER" render --root "$R" --blueprint "$BP" --facts "$TMP/distill.facts" >/dev/null 2>&1
+assert "distilled section renders through the facts flow (spec-anchored evidence)" $? ""
+grep -q 'see `specs/001-io-v2/spec.md`' "$BP" \
+  && grep -q -- '- `src/io` — IO subsystem shipped by spec 001-io-v2; \*\*distilled\*\* → `specs/001-io-v2`' "$BP"
+assert "distilled body points at the spec; TOC shows distilled ownership" $? ""
+bash "$ORACLE" check --json --root "$R" --blueprint "$BP" >/dev/null 2>&1
+assert "distilled render keeps the gate green (edges repairable — GAP-6 closed)" $? ""
+
 # ── phase 3: hotfix -> STALE -> self-heal via remedy contract ─────────────────
 printf 'y\n' >> "$R/src/core/c1.py"
 git -C "$R" add -A; git -C "$R" commit -qm "hotfix, no spec"
