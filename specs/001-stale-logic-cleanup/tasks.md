@@ -41,7 +41,7 @@
 
 ## Phase 2 — Prevention (US3)
 
-- [ ] T010 CONTRIBUTING: new-mechanism rationale rule (inventory entry
+- [x] T010 CONTRIBUTING: new-mechanism rationale rule (inventory entry
       required in the same change); inventory maintenance note (FR-009).
 
 ## Phase 3 — Validation (FR-007/008/010)

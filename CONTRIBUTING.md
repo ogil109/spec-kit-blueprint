@@ -85,6 +85,14 @@ drift after re-onboarding) after 120+ asserts were green.
 ## Guidelines
 
 - Open an issue to discuss anything larger than a fix before sending a PR.
+- **Every mechanism carries its rationale** — `docs/decision-inventory.md` is the
+  maintained register of every shipped mechanism: what it is, why it exists, and
+  whether its original rationale still holds. **Adding a mechanism (a command, a
+  flag, a config key, a marker attribute, a validation rule) requires adding its
+  inventory row in the same change**; removing or reworking one updates its row.
+  A mechanism whose row can't articulate a live rationale is a removal candidate —
+  that register is how the codebase avoids accumulating decisions nobody can
+  explain anymore.
 - Keep the oracle **deterministic and dependency-free** (bash + git); agent-authored
   behavior lives in the command markdown, not the script.
 - Keep the oracle **portable shell**: POSIX character classes (never GNU regex
