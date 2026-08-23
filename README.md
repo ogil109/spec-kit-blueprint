@@ -360,13 +360,7 @@ plain bash + git (PowerShell ports at byte parity), organized as thin entry
 scripts over single-responsibility `lib/` modules, so the tests run anywhere:
 
 ```bash
-bash tests/oracle_test.sh            # state frontier, provenance, context
-bash tests/check_remap_test.sh       # the tiered gate: hard/soft, --strict, JSON contract
-bash tests/harness_loop_test.sh      # the autonomous-harness loop
-bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms
-bash tests/slicer_test.sh            # the deterministic partitioner
-bash tests/e2e_lifecycle_test.sh     # the full downstream lifecycle on a generated map
-bash tests/ps_parity_test.sh         # byte-parity: bash vs PowerShell ports
+for t in tests/*_test.sh; do bash "$t"; done   # the filesystem is the roster
 ```
 
 Iterate locally with `specify extension add /path/to/spec-kit-blueprint --dev`. Please open an
