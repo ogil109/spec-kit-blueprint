@@ -175,6 +175,7 @@ if ($Command -eq "render") {
     if ($line -match '^section (.*)$') {
       Flush-Cur
       $nm = $Matches[1]
+      if (($blocks | Where-Object { $_.name -eq $nm }).Count -gt 0) { $errs.Add("duplicate block for '$nm' — a facts file declares each section once") }
       $st = if ($headState.ContainsKey($nm)) { $headState[$nm] } else { "" }
       if ($st -eq "code" -or $st -eq "context") { $sectionCount++ }
       elseif ($st -eq "") { $errs.Add("section '$nm' is not on the map (scaffold first; check the heading)"); $st = "code" }
@@ -185,6 +186,7 @@ if ($Command -eq "render") {
     if ($line -match '^concern (.*)$') {
       Flush-Cur
       $nm = $Matches[1]
+      if (($blocks | Where-Object { $_.name -eq $nm }).Count -gt 0) { $errs.Add("duplicate block for '$nm' — a facts file declares each section once") }
       if ($nm.Contains(" ")) { $errs.Add("concern '$nm' must be a space-free name") } else { $concernNames.Add($nm) }
       $cur = [pscustomobject]@{ name = $nm; kind = "concern"; state = "context"; role = ""; facets = [System.Collections.Generic.List[string]]::new(); notes = [System.Collections.Generic.List[string]]::new() }
       continue
@@ -295,9 +297,12 @@ if ($Command -eq "render") {
 
   $sb = [System.Text.StringBuilder]::new()
   $mode = "copy"; $curh = ""
+  $inToc = $false; $tocSeen = $false; $tocFlushed = $false
+  $tocPresent = [System.Collections.Generic.HashSet[string]]::new()
   foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
     if ($line -match '^- `([^`]+)`') {
       $pth = $Matches[1]
+      $tocSeen = $true; [void]$tocPresent.Add($pth)
       if ($byName.ContainsKey($pth) -and $byName[$pth].kind -eq "section") {
         $rem = if ($line -match ' \(remainder\)') { " (remainder)" } else { "" }
         $status = if ($byName[$pth].state -eq "context") { "**context**" } else { "**code-owned**" }
@@ -305,8 +310,18 @@ if ($Command -eq "render") {
         continue
       }
     }
+    if ($inToc -and $tocSeen -and -not $tocFlushed -and $line -match '^\s*$') {
+      foreach ($b in $blocks) {
+        if (-not $tocPresent.Contains($b.name)) {
+          $status = if ($b.kind -eq "concern" -or $b.state -eq "context") { "**context**" } else { "**code-owned**" }
+          [void]$sb.Append("- ``$($b.name)`` — $(First-Sentence $b.role); $status`n")
+        }
+      }
+      $tocFlushed = $true
+    }
     if ($line -match '^## ') {
       $h = ($line -replace '^##\s+', '' -replace ' \(remainder\)$', '')
+      $inToc = ($line -eq "## Table of Contents")
       if ($mode -eq "skiprel" -or $mode -eq "skipconcern") { $mode = "copy" }
       if ($h -eq $relHead -and $rtext -ne "") { [void]$sb.Append($rtext); $mode = "skiprel"; continue }
       if ($byName.ContainsKey($h) -and $byName[$h].kind -eq "concern") {

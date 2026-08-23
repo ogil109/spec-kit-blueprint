@@ -349,6 +349,45 @@ bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/prune.txt" >/
 { ! grep -q 'from=newmod ' "$B2" && grep -q 'from=src to=newmod' "$B2"; }
 assert "empty neighbor set prunes the block's own edges, nothing else" $? "$(grep 'blueprint:relation' "$B2")"
 
+# 22. pandas-e2e regression: pattern check must survive BIG evidence files.
+#     `grep -q` early-exits, SIGPIPEs `git show` on files larger than a pipe
+#     buffer, and pipefail then reported a FOUND pattern as missing — inverted,
+#     size-dependent, invisible to small fixtures.
+python3 -c "
+lines = ['needle_on_top = 1'] + [f'filler_{i} = {i}' for i in range(60000)]
+open('$R2/src/a/big.py', 'w').write('\n'.join(lines) + '\n')
+"
+git -C "$R2" add -A; git -C "$R2" commit -qm big
+cat > "$TMP/bigfacts.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role Application source.
+neighbor uses | newmod | anchored in a >1MB file | src/a/big.py#needle_on_top
+FEOF
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/bigfacts.txt" >/dev/null 2>&1
+assert "pattern found early in a >1MB file is accepted (no SIGPIPE inversion)" $? ""
+bash "$ORACLE" check --json --root "$R2" --blueprint "$B2" 2>/dev/null | python3 -c "
+import json,sys
+assert not [i for i in json.load(sys.stdin)['issues'] if i['type']=='relation-evidence'], 'gate must not false-flag big-file patterns'
+" >/dev/null 2>&1; assert "gate pattern re-check survives big files too" $? ""
+
+# 23. pandas-e2e regression: duplicate facts blocks are rejected, not last-wins
+cat > "$TMP/dupfacts.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role First.
+section src
+role DUPLICATE.
+FEOF
+derr="$(bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/dupfacts.txt" 2>&1)"; drc=$?
+{ [ "$drc" = 1 ] && echo "$derr" | grep -q "duplicate block for 'src'"; }
+assert "duplicate section block -> rejected (was silent last-wins)" $? "rc=$drc $derr"
+
+# 24. pandas-e2e regression: the map indexes itself — a section with no TOC
+#     entry (additive re-onboard, render-created concern) is appended to the TOC
+grep -q -- '- `newmod`' "$B2"
+assert "re-onboarded/appended sections gain a TOC entry on render" $? "$(sed -n '/Table of Contents/,/^---$/p' "$B2")"
+
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

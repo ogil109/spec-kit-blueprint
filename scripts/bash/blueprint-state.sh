@@ -335,7 +335,8 @@ if [ "$CMD" = "check" ]; then
       if is_git; then
         if [ -z "$(current_sha "$revpath")" ]; then
           add soft relation-evidence "$rfrom->$rto" "relation evidence path gone: $revpath" "/speckit.blueprint-index.recover" authored
-        elif [ -n "$revpat" ] && ! git -C "$ROOT" show "HEAD:$revpath" 2>/dev/null | grep -qF -- "$revpat"; then
+        elif [ -n "$revpat" ] && ! git -C "$ROOT" show "HEAD:$revpath" 2>/dev/null | grep -F -- "$revpat" >/dev/null; then
+          # (no `grep -q`: early exit SIGPIPEs git show on big files under pipefail)
           # the file survived but the demonstrating content did not — semantic rot
           add soft relation-evidence "$rfrom->$rto" "evidence no longer demonstrates the edge: '$revpat' not in $revpath" "/speckit.blueprint-index.recover" authored
         fi

@@ -61,6 +61,17 @@ what it breaks, what to watch for — goes in the **GitHub release notes** inste
 One caveat: the initial commit predates these conventions, so `cz check` is scoped to a
 PR's own range rather than the whole history.
 
+## Pre-release ritual
+
+The suites cannot catch what their fixtures never vary. Before cutting a
+release, run the full brownfield on-ramp against a **large real repository**
+(shallow-clone something like pandas): install with `--dev`, scaffold, author
+facts with `#pattern` edges, render, restamp, verify + check, then the drills
+— stale/heal, pattern rot (edit a single-hit pattern away), per-block repair,
+additive re-onboard, `--strict`. Three shipped bugs were found exactly this
+way (size-dependent SIGPIPE inversion, silent duplicate-block last-wins, TOC
+drift after re-onboarding) after 120+ asserts were green.
+
 ## Guidelines
 
 - Open an issue to discuss anything larger than a fix before sending a PR.
