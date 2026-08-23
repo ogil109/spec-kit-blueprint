@@ -43,6 +43,12 @@ exist undiscovered.
   working tree at all: still-current content is salvaged into the working
   docs, the file is removed, and its history remains where history lives — in
   version control.
+- Q: Is the greenfield/docs-seeded lane in scope for rework, or
+  inventory-only? → A: Fully in scope. The greenfield lane is not a
+  second-class citizen: it must follow the same authoring and validation
+  model as the brownfield on-ramp, and the research may disposition its
+  mechanisms as rework like any other. Lane parity is a mandated end-state
+  principle.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -167,7 +173,12 @@ inventory file exists in the repository with a stated maintenance rule.
   a short set of design principles (for example: every input surface is
   validated; each concern has exactly one mechanism; no documented claim
   without enforcement; no feature without a demonstrated use) — and every
-  disposition MUST be justified against it.
+  disposition MUST be justified against it. Two principles are mandated by
+  clarification and MUST appear in the statement: **lane parity** (the
+  code-seeded and docs-seeded on-ramps share the same authoring and
+  validation model — neither is a second-class citizen) and **enforced
+  equivalence** (the dual-port contract, at whatever level the research
+  concludes, stays machine-enforced).
 - **FR-003**: The cleanup phase MUST execute every *remove* and *rework*
   disposition in both platform implementations and their documentation, or
   record an explicit deferral with reason. Silent deferrals are a defect.
@@ -260,6 +271,9 @@ whole codebase and treat this list as a floor, not the scope:
   entry by the Clarifications; the research argues keep/rework).
 - The in-tree design-history document (per Clarifications: salvage current
   content into working docs, remove the file, history stays in commits).
+- The greenfield/docs-seeded lane's authoring mechanisms (hand-stamped
+  sections, hand-authored digests, doc-path seeding predating the current
+  authoring flow) — in scope for rework under the lane-parity principle.
 
 ## Assumptions
 
