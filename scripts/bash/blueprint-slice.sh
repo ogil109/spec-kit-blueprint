@@ -178,7 +178,10 @@ if [ "$CMD" = "render" ]; then
     case "$ev" in *"#"*) evpat="${ev#*#}" ;; esac
     if [ -z "$(current_sha "$evpath")" ]; then err "$who evidence not tracked in git: $evpath"; return; fi
     if [ -n "$juris" ] && ! covered_by "$evpath" "$juris"; then err "$who evidence outside '$juris' markers: $evpath"; fi
-    if [ -n "$evpat" ] && ! git -C "$ROOT" show "HEAD:$evpath" 2>/dev/null | grep -qF -- "$evpat"; then
+    # no `grep -q`: early exit SIGPIPEs `git show` on files larger than a pipe
+    # buffer, and pipefail then reports a FOUND pattern as missing. Let grep
+    # consume its whole input; the pipeline status is then grep's own 0/1.
+    if [ -n "$evpat" ] && ! git -C "$ROOT" show "HEAD:$evpath" 2>/dev/null | grep -F -- "$evpat" >/dev/null; then
       err "$who evidence pattern not found in $evpath: '$evpat'"
     fi
   }
@@ -248,6 +251,8 @@ if [ "$CMD" = "render" ]; then
     case "$tag" in
       E) err "facts line ${rest%%"$US"*}: ${rest#*"$US"}" ;;
       S) flushblock
+         dup=0; for x in "${SECTIONS[@]:-}" "${CONCERNS[@]:-}"; do [ "$x" = "$rest" ] && dup=1; done
+         [ "$dup" = 1 ] && err "duplicate block for '$rest' — a facts file declares each section once"
          st="$(sec_state "$rest")"
          case "$st" in
            code|context) SECTIONS+=("$rest"); newcur "$rest" section "$st" ;;
@@ -255,6 +260,8 @@ if [ "$CMD" = "render" ]; then
            *)  err "section '$rest' is $st-owned — render only writes code/context sections"; newcur "$rest" section "$st" ;;
          esac ;;
       C) flushblock
+         dup=0; for x in "${SECTIONS[@]:-}" "${CONCERNS[@]:-}"; do [ "$x" = "$rest" ] && dup=1; done
+         [ "$dup" = 1 ] && err "duplicate block for '$rest' — a facts file declares each section once"
          case "$rest" in
            *" "*) err "concern '$rest' must be a space-free name" ;;
            *) CONCERNS+=("$rest") ;;
@@ -370,9 +377,10 @@ if [ "$CMD" = "render" ]; then
   }
   BEGIN {
     # load blocks
+    nkn = 0
     while ((getline line < blocks) > 0) {
       split(line, a, US)
-      if (a[1] == "@@BEGIN")      { h = a[2]; nfacets[h] = 0; nnotes[h] = 0; known[h] = 1 }
+      if (a[1] == "@@BEGIN")      { h = a[2]; nfacets[h] = 0; nnotes[h] = 0; known[h] = 1; kn[++nkn] = h }
       else if (a[1] == "ROLE")    { role[h] = a[2] }
       else if (a[1] == "KIND")    { bkind[h] = a[2] }
       else if (a[1] == "STATE")   { state[h] = a[2] }
@@ -401,6 +409,7 @@ if [ "$CMD" = "render" ]; then
     # TOC line rewrite for known sections
     if (line ~ /^- `/) {
       p = line; sub(/^- `/, "", p); sub(/`.*$/, "", p)
+      toc_seen = 1; toc_present[p] = 1
       if (p in known && bkind[p] == "section") {
         rem = (line ~ / \(remainder\)/) ? " (remainder)" : ""
         status = (state[p] == "context") ? "**context**" : "**code-owned**"
@@ -408,7 +417,22 @@ if [ "$CMD" = "render" ]; then
         next
       }
     }
+    # the map indexes itself: a facts block with no TOC entry (a section
+    # re-onboarded additively, a concern created by render) is appended to the
+    # TOC when the entry list ends — otherwise the index silently drifts from
+    # the content it indexes.
+    if (in_toc && toc_seen && !toc_flushed && line ~ /^[[:space:]]*$/) {
+      for (i = 1; i <= nkn; i++) {
+        p = kn[i]
+        if (!(p in toc_present)) {
+          status = (bkind[p] == "concern" || state[p] == "context") ? "**context**" : "**code-owned**"
+          print "- `" p "` — " first_sentence(role[p]) "; " status
+        }
+      }
+      toc_flushed = 1
+    }
     if (line ~ /^## /) {
+      in_toc = ($0 == "## Table of Contents")
       h = line; sub(/^##[[:space:]]+/, "", h); sub(/ \(remainder\)$/, "", h)
       if (mode == "skiprel" || mode == "skipconcern") mode = "copy"   # region ended
       if (h == relhead_name()) { if (rels != "") { printf "%s", rtext; relprinted = 1; mode = "skiprel"; next } }
