@@ -23,7 +23,7 @@ spec the oracle reports (`blueprint-state.sh status` → "Distill drift").
 
 1. Repo root = nearest ancestor with `.specify/`.
 2. Blueprint path: `blueprint-config.yml` → `blueprint.path`; else auto-detect
-   (`docs/blueprint.md`, `docs/overview.md`, `.specify/memory/blueprint.md`).
+   (the canonical `.specify/memory/blueprint.md`, then `docs/blueprint.md`).
 3. Target spec dir under `specs/<slug>/`; confirm `spec.md` exists.
 4. Find the blueprint section this spec owns — by heading/scope match, or an
    existing pointer to `specs/<slug>`. If none matches, report it and offer to add

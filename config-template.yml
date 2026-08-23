@@ -5,7 +5,7 @@
 blueprint:
   # Where the blueprint document lives, relative to the repo root. If unset, the
   # oracle auto-detects the canonical .specify/memory/blueprint.md first, then the
-  # legacy homes docs/blueprint.md and docs/overview.md.
+  # legacy home docs/blueprint.md.
   path: ".specify/memory/blueprint.md"
 
 distill:

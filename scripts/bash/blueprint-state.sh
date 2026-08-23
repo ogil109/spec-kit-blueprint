@@ -14,8 +14,7 @@
 # Env / args:
 #   --root <dir>        repo root (default: search upward for .specify, else cwd)
 #   --blueprint <path>  blueprint doc (default: from config, else the canonical
-#                       .specify/memory/blueprint.md, else docs/blueprint.md or
-#                       docs/overview.md)
+#                       .specify/memory/blueprint.md, else docs/blueprint.md)
 #
 # This entry only parses arguments and sequences the lib/ modules; every piece
 # of behavior lives in exactly one file under scripts/bash/lib/.
@@ -76,7 +75,7 @@ fi
 if [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; then
   # Canonical location first (matches the config default and extension defaults);
   # the docs/ candidates are legacy/alternative homes.
-  for cand in .specify/memory/blueprint.md docs/blueprint.md docs/overview.md; do
+  for cand in .specify/memory/blueprint.md docs/blueprint.md; do
     [ -f "$ROOT/$cand" ] && BLUEPRINT="$ROOT/$cand" && break
   done
 fi
