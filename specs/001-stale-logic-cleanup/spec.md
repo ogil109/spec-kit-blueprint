@@ -37,6 +37,12 @@ exist undiscovered.
   parity / relax to semantic / other), and the conclusion ships. Whatever
   contract results MUST remain machine-enforced in CI; only the level of
   equivalence is on the table, never the enforcement.
+- Q: Must the historical design document also satisfy the zero-contradictions
+  rule? → A: The rule covers the working documentation set only — and
+  documents that are primarily historical narrative do not belong in the
+  working tree at all: still-current content is salvaged into the working
+  docs, the file is removed, and its history remains where history lives — in
+  version control.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -170,8 +176,13 @@ inventory file exists in the repository with a stated maintenance rule.
 - **FR-005**: Cleanup changes that alter released behavior MUST be declared
   as breaking changes in the project's change record; undeclared behavior
   changes are a defect.
-- **FR-006**: After cleanup, the full shipped documentation set MUST contain
-  no claim that contradicts actual behavior.
+- **FR-006**: After cleanup, the working documentation set — everything a
+  user or agent operates from (project README, contribution guide, command
+  guidance, templates, configuration comments) — MUST contain no claim that
+  contradicts actual behavior. Documents that are primarily historical
+  narrative MUST NOT remain in the working tree: content that is still
+  load-bearing is migrated into the working docs, the document is removed,
+  and it stays accessible through version-control history.
 - **FR-007**: The equivalence contract between the two platform
   implementations is itself an inventory entry (per Clarifications): the
   research argues its disposition, and the existing byte-level checks remain
@@ -247,6 +258,8 @@ whole codebase and treat this list as a floor, not the scope:
 - The same test-suite roster maintained by hand in three places.
 - The dual-port byte-equivalence contract itself (mandated as an inventory
   entry by the Clarifications; the research argues keep/rework).
+- The in-tree design-history document (per Clarifications: salvage current
+  content into working docs, remove the file, history stays in commits).
 
 ## Assumptions
 
