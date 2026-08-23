@@ -17,7 +17,7 @@
 set -euo pipefail
 
 ROOT=""
-BLUEPRINT=""
+BLUEPRINT=""; BPFLAG=""
 SCOPE=""
 ALL=0
 FACTS=""
@@ -28,7 +28,7 @@ while [ $# -gt 0 ]; do
     --json) JSON=1 ;;
     --human) HUMAN=1 ;;
     --root) ROOT="$2"; shift ;;
-    --blueprint) BLUEPRINT="$2"; shift ;;
+    --blueprint) BLUEPRINT="$2"; BPFLAG=1; shift ;;
     --scope) SCOPE="${2%/}"; shift ;;
     --facts) FACTS="$2"; shift ;;
     --all) ALL=1 ;;
@@ -52,11 +52,15 @@ source "$LIB/common-config.sh"     # validates the config (exits 2 on violations
 
 
 # ── locate the blueprint doc (optional here; used for subtraction + exclusion) ─
+# An EXPLICIT --blueprint is authoritative and never silently replaced: a
+# missing explicit target means a FRESH map there (scaffold) / no subtraction
+# (slice) — falling back to auto-detect would quietly operate on a different
+# file than the one named.
 if [ -z "$BLUEPRINT" ] && [ -f "$CFG" ]; then
   p=$(grep -E '^[[:space:]]*path:' "$CFG" | head -1 | sed -E 's/^[[:space:]]*path:[[:space:]]*"?([^"]*)"?[[:space:]]*$/\1/' || true)
   [ -n "$p" ] && [ -f "$ROOT/$p" ] && BLUEPRINT="$ROOT/$p"
 fi
-if [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; then
+if [ -z "$BPFLAG" ] && { [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; }; then
   # Canonical location first (matches the config default); docs/ candidates are legacy homes.
   for cand in .specify/memory/blueprint.md docs/blueprint.md; do
     [ -f "$ROOT/$cand" ] && BLUEPRINT="$ROOT/$cand" && break

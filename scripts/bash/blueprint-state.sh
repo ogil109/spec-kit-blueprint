@@ -21,7 +21,7 @@
 set -euo pipefail
 
 ROOT=""
-BLUEPRINT=""
+BLUEPRINT=""; BPFLAG=""
 SKIP_SLUGS=""
 PATH_FILTER=""
 STRICT=0
@@ -31,7 +31,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --json) JSON=1 ;;
     --root) ROOT="$2"; shift ;;
-    --blueprint) BLUEPRINT="$2"; shift ;;
+    --blueprint) BLUEPRINT="$2"; BPFLAG=1; shift ;;
     --skip) SKIP_SLUGS="$SKIP_SLUGS $2"; shift ;;   # exclude a slug (e.g. a parked slice); repeatable
     --path) PATH_FILTER="$2"; shift ;;              # restamp: limit to one code path
     --strict) STRICT=1 ;;                           # check: make advisory (soft) issues blocking too
@@ -57,7 +57,12 @@ source "$LIB/common-config.sh"     # validates the config (exits 2 on violations
 # GNU regex shorthands are not POSIX ERE — BSD sed (macOS) passes the line through
 # UNCHANGED on a failed match, silently corrupting the resolved path.
 # tests/portability_lint_test.sh guards this class.
-if [ -z "$BLUEPRINT" ]; then
+# An EXPLICIT --blueprint is authoritative: it is never silently replaced by
+# config or auto-detect (same loudness rule as the configured-path warning) —
+# a missing explicit path behaves as "no blueprint", not as a different file.
+if [ -n "$BLUEPRINT" ]; then
+  [ -f "$BLUEPRINT" ] || echo "warning: --blueprint '$BLUEPRINT' not found — treating as absent (no fallback)" >&2
+elif [ -z "$BLUEPRINT" ]; then
   cfg="$ROOT/.specify/extensions/blueprint-index/blueprint-config.yml"
   if [ -f "$cfg" ]; then
     # `|| true`: under `set -euo pipefail` a config with no `path:` key would
@@ -72,7 +77,7 @@ if [ -z "$BLUEPRINT" ]; then
     fi
   fi
 fi
-if [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; then
+if [ -z "$BPFLAG" ] && { [ -z "$BLUEPRINT" ] || [ ! -f "$BLUEPRINT" ]; }; then
   # Canonical location first (matches the config default and extension defaults);
   # the docs/ candidates are legacy/alternative homes.
   for cand in .specify/memory/blueprint.md docs/blueprint.md; do

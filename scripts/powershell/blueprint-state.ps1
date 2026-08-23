@@ -14,12 +14,12 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$Json = $false; $Root = ""; $Blueprint = ""; $Skip = @(); $PathFilter = ""; $Strict = $false; $Human = $false
+$Json = $false; $Root = ""; $Blueprint = ""; $Skip = @(); $PathFilter = ""; $Strict = $false; $Human = $false; $BpFlag = $false
 for ($i = 0; $i -lt $Rest.Count; $i++) {
   switch ($Rest[$i]) {
     "--json"      { $Json = $true }
     "--root"      { $i++; $Root = $Rest[$i] }
-    "--blueprint" { $i++; $Blueprint = $Rest[$i] }
+    "--blueprint" { $i++; $Blueprint = $Rest[$i]; $BpFlag = $true }
     "--skip"      { $i++; $Skip += $Rest[$i] }   # exclude a slug (e.g. a parked slice); repeatable
     "--path"      { $i++; $PathFilter = $Rest[$i] }  # restamp: limit to one code path
     "--strict"    { $Strict = $true }            # check: make advisory (soft) issues blocking too
@@ -41,6 +41,11 @@ if (-not $Root) {
   if (-not $Root) { $Root = (Get-Location).Path }
 }
 
+# An EXPLICIT --blueprint is authoritative: never silently replaced by config
+# or auto-detect — a missing explicit path behaves as "no blueprint".
+if ($BpFlag -and -not (Test-Path $Blueprint)) {
+  [Console]::Error.WriteLine("warning: --blueprint '$Blueprint' not found — treating as absent (no fallback)")
+}
 # locate blueprint
 if (-not $Blueprint) {
   $cfg = Join-Path $Root ".specify/extensions/blueprint-index/blueprint-config.yml"
@@ -55,7 +60,7 @@ if (-not $Blueprint) {
     }
   }
 }
-if (-not $Blueprint -or -not (Test-Path $Blueprint)) {
+if (-not $BpFlag -and (-not $Blueprint -or -not (Test-Path $Blueprint))) {
   # Canonical location first (matches the config default); docs/ candidates are legacy homes.
   foreach ($c in @(".specify/memory/blueprint.md", "docs/blueprint.md")) {
     if (Test-Path (Join-Path $Root $c)) { $Blueprint = Join-Path $Root $c; break }

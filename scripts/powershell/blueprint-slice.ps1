@@ -19,13 +19,13 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$Json = $false; $Human = $false; $Root = ""; $Blueprint = ""; $Scope = ""; $All = $false; $Facts = ""
+$Json = $false; $Human = $false; $Root = ""; $Blueprint = ""; $Scope = ""; $All = $false; $Facts = ""; $BpFlag = $false
 for ($i = 0; $i -lt $Rest.Count; $i++) {
   switch ($Rest[$i]) {
     "--json"      { $Json = $true }
     "--human"     { $Human = $true }
     "--root"      { $i++; $Root = $Rest[$i] }
-    "--blueprint" { $i++; $Blueprint = $Rest[$i] }
+    "--blueprint" { $i++; $Blueprint = $Rest[$i]; $BpFlag = $true }
     "--scope"     { $i++; $Scope = $Rest[$i].TrimEnd('/') }
     "--facts"     { $i++; $Facts = $Rest[$i] }
     "--all"       { $All = $true }
@@ -65,7 +65,9 @@ if (-not $Blueprint -and (Test-Path $Cfg)) {
     if ($p -and (Test-Path (Join-Path $Root $p))) { $Blueprint = Join-Path $Root $p }
   }
 }
-if (-not $Blueprint -or -not (Test-Path $Blueprint)) {
+# An EXPLICIT --blueprint is authoritative and never silently replaced: a
+# missing explicit target means a FRESH map there (scaffold) / no subtraction.
+if (-not $BpFlag -and (-not $Blueprint -or -not (Test-Path $Blueprint))) {
   foreach ($c in @(".specify/memory/blueprint.md", "docs/blueprint.md")) {
     if (Test-Path (Join-Path $Root $c)) { $Blueprint = Join-Path $Root $c; break }
   }
