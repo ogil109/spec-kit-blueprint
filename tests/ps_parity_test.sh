@@ -115,9 +115,9 @@ section src
 role Application source tree.
 facet Entry | `src/loose.py` wires the modules. | src/loose.py
 neighbor uses | tests | exercised by the suite | src/loose.py#x
-concern build-config
-role Where build configuration lives.
-neighbor crosscuts | src | manifest read at build time | src/core/f1.py
+section infra
+role Where deployment configuration lives.
+neighbor crosscuts | src | manifest read at deploy time | src/core/f1.py
 FEOF
 M1="$TMP/m1.md"; M2="$TMP/m2.md"; : > "$M1"; : > "$M2"
 bash "$BS" scaffold --root "$R" --blueprint "$M1" > "$M1"
@@ -138,6 +138,31 @@ bash "$BS" render --root "$R" --blueprint "$M1" --facts "$TMP/facts2.txt" >/dev/
 pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/facts2.txt" >/dev/null 2>&1
 diff -q "$M1" "$M2" >/dev/null
 if [ $? -eq 0 ]; then ok "partial repair merge byte-identical (edges preserved)"; else bad "partial repair parity" "$(diff "$M1" "$M2" | head -6)"; fi
+
+# 6b. distilled lane parity (D3): spec-owned section rendered through the same
+# facts flow; evidence anchored in the owning spec's directory is in-jurisdiction
+for m in "$M1" "$M2"; do
+  python3 - "$m" <<'PYEOF'
+import sys
+p = sys.argv[1]; t = open(p).read()
+old = "## tests\n<!-- blueprint:section state=code -->"
+assert old in t, "parity fixture lacks the tests section"
+open(p, 'w').write(t.replace(old, "## tests\n<!-- blueprint:section state=distilled owner=specs/001-x -->"))
+PYEOF
+done
+cat > "$TMP/facts3.txt" <<'FEOF'
+blueprint-facts 1
+section tests
+role The pytest suite, shipped by spec 001-x.
+facet Contract | requirements live in the shipped spec | specs/001-x/spec.md#x
+neighbor uses | src | tests import the code under test | tests/t1.py
+FEOF
+b="$(bash "$BS" render --root "$R" --blueprint "$M1" --facts "$TMP/facts3.txt" 2>&1; echo "rc=$?")"
+p="$(pwsh -NoProfile "$PSSL" render --root "$R" --blueprint "$M2" --facts "$TMP/facts3.txt" 2>&1; echo "rc=$?")"
+# the report line names the (differing) target path; compare everything else
+{ [ "$(echo "$b" | tail -2)" = "$(echo "$p" | tail -2)" ] && echo "$b" | grep -q "rc=0" \
+  && diff -q "$M1" "$M2" >/dev/null && grep -q 'see `specs/001-x/spec.md`' "$M1"; }
+if [ $? -eq 0 ]; then ok "distilled render byte-identical (spec-anchored evidence)"; else bad "distilled render parity" "b=$b p=$p $(diff "$M1" "$M2" | head -6)"; fi
 
 # 7. config validation parity: identical error output + exit code
 printf 'slice:\n  pin_dir:\n    - x\n  max_files: lots\n' > "$R/.specify/extensions/blueprint-index/blueprint-config.yml"

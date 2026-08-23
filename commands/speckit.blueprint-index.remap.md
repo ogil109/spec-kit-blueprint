@@ -39,13 +39,18 @@ For each targeted code-owned section:
    another subsystem, a split/merged module. Ignore implementation detail below the
    map (a bug fix that doesn't change the section's claims needs no prose change).
 
-2. **Update the digest** to match today's code, per the shared section-anatomy
-   contract (`.specify/extensions/blueprint-index/templates/section-anatomy.md`):
-   fix the role sentence and the evidence-anchored at-a-glance bullets so the
-   section is true again — same recovery procedure as the brownfield on-ramp.
-   **Map what exists; do not redesign.** If the change was purely below map
-   altitude, the prose may be unchanged — that's fine; you're still refreshing
-   the baseline.
+2. **Update the digest through the facts flow** — the same emit-facts → render
+   path as the brownfield on-ramp and `distill`; never hand-edit the body. Write
+   a facts block for the section (role, evidence-anchored `facet` bullets,
+   `neighbor` edges — see the shared section-anatomy contract at
+   `.specify/extensions/blueprint-index/templates/section-anatomy.md`), then run
+   `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh render --facts <file>`
+   (or the PowerShell port). The renderer validates every claim against HEAD and
+   rewrites the body and TOC entry; this works identically for `code` and
+   `distilled` sections (a distilled section's evidence may also anchor into its
+   owning `specs/<slug>/`). **Map what exists; do not redesign.** If the change
+   was purely below map altitude, skip the facts step entirely — you're still
+   refreshing the baseline.
 
 3. **If a `DANGLING` section** points at code that no longer exists, either repoint
    its `path=` marker at the code's new location, or (if the subsystem is gone)

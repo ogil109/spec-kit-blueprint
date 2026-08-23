@@ -112,6 +112,17 @@ never delete a section's design detail.**
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-state.sh restamp` (or the
    PowerShell port). Now `blueprint.check` can detect later code drift.
 
+**One authoring model, both lanes.** Wherever a managed section's body carries
+*claims* — a `code`, `context`, or `distilled` body — those claims are authored
+as facts and written by the renderer
+(`blueprint-slice.sh render --facts <file>`), which machine-validates every
+claim before writing; this is the same flow on the greenfield and brownfield
+lanes. Hand-authored bodies are legitimate in exactly one state: `detailed`,
+whose body is design-in-waiting, not claims. A greenfield map earns its
+rendered bodies as specs ship and `distill` runs — a distilled section's facts
+may anchor evidence into its owning `specs/<slug>/` directory as well as its
+code markers.
+
 ## Brownfield on-ramp (`--from-code`): structure is machine-written, prose is authored
 
 Two independent runs of this on-ramp must produce the **same map structure**. That is
