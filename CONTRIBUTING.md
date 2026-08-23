@@ -23,14 +23,11 @@ non-obvious rules the layout depends on:
 All suites are deterministic and run anywhere:
 
 ```bash
-bash tests/oracle_test.sh            # state frontier, provenance, context
-bash tests/check_remap_test.sh       # the tiered gate: hard/soft, --strict, JSON contract, coverage
-bash tests/harness_loop_test.sh      # the autonomous-harness loop
-bash tests/portability_lint_test.sh  # static guard: no GNU-only regex/sed idioms (BSD sed safety)
-bash tests/slicer_test.sh            # the deterministic partitioner: rules, determinism, blind-spot closure
-bash tests/e2e_lifecycle_test.sh     # downstream consumption: on-ramp -> next -> distill -> self-heal -> re-onboard
-bash tests/ps_parity_test.sh         # byte-parity: bash vs PowerShell ports (skips without pwsh; CI runs it)
+for t in tests/*_test.sh; do bash "$t"; done   # the filesystem is the roster
 ```
+
+Each suite's header comment states what it covers; adding a suite is one new
+`tests/*_test.sh` file — CI picks it up automatically, nothing to register.
 
 CI runs exactly these on every push/PR (`.github/workflows/tests.yml`).
 
