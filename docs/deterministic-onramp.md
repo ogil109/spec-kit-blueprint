@@ -332,8 +332,17 @@ cannot contradict by construction; recovery runs are compared by diffing
 facts, not wording — convergence became measurable; the LLM cost of the
 on-ramp halved; and the agent no longer edits the map at all — the last
 hand-edit lane in the brownfield flow is gone. Render is idempotent and
-partial (unnamed sections keep their prose), so repair flows re-emit only
-what changed.
+partial for section prose (unnamed sections keep their content; the relations
+home is rebuilt from the facts, so edge repairs carry the full edge set).
+
+The review also flagged that evidence validation was existence-level only — a
+`uses` edge's evidence proved a *file* existed, not that it demonstrated the
+claim. Evidence now supports `<path>#<pattern>`: the fixed string must be
+present in the file at HEAD, checked at render time (a wrong pattern rejects
+the claim) and re-checked forever by the gate, which flags **semantic rot** —
+the file survives a refactor but the demonstrating content (the import, the
+call) does not. Neighbor edges are instructed to always carry a pattern; a
+bare path remains legal but proves only existence.
 
 ## Open questions (deliberately not resolved in this spike)
 

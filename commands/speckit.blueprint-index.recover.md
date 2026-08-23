@@ -66,7 +66,15 @@ or declared concerns. Semantics:
   contract). Direction matters: record the dependency as it exists.
 - `crosscuts` — `from` is a cross-cutting facility threading through `to`
   (configuration, logging, auth, telemetry, error taxonomy…).
-- **No evidence, no claim** — facets and edges alike.
+- **No evidence, no claim** — facets and edges alike. Evidence is
+  `<path>` or `<path>#<pattern>` (a space-free fixed string that must be
+  present in the file at HEAD). **Always use a pattern on `neighbor` edges** —
+  the import/call/symbol that witnesses the dependency — because a bare path
+  only proves a file exists, while a pattern makes the claim *falsifiable*:
+  the renderer rejects it if the content isn't there, and the `check` gate
+  flags *semantic rot* forever after (the file survives a refactor but the
+  demonstrating content doesn't). Patterns on facets are recommended where a
+  facet names a symbol.
 
 ## Execution
 
@@ -116,9 +124,11 @@ or declared concerns. Semantics:
    facts. It is idempotent and partial: sections you did not name keep their
    current prose.
 
-7. **Idempotent repair, not rewrite.** On re-run, re-emit facts only for what
-   changed (the `check` issues point at exactly which sections/edges): render
-   merges them in place. Never regenerate reviewed content wholesale.
+7. **Idempotent repair.** Section prose renders *partially* — sections you do
+   not name keep their current content — but the relations home is rebuilt
+   from the facts on every render (edge rationale lives only in the rendered
+   table, so a merge is impossible). Repair rule: re-emit facts for only the
+   *sections* that changed, but always carry the **full edge set**.
 
 8. **Close the loop.** After render: restamp, then `blueprint-state.sh check`
    must be free of `relation`/`relation-evidence` issues and

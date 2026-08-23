@@ -276,6 +276,30 @@ bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/facts.txt" >/
 diff -q "$B2.r1" "$B2" >/dev/null; assert "re-render with same facts is byte-identical" $? "$(diff "$B2.r1" "$B2" | head -4)"
 rm -f "$B2.r1"
 
+# 16b. evidence patterns make claims FALSIFIABLE: path#pattern must be present
+#      in the file at HEAD — a right pattern passes, a wrong one is rejected.
+printf 'import newmod.helpers\n' > "$R2/src/a/f3.py"
+git -C "$R2" add -A; git -C "$R2" commit -qm f3
+cat > "$TMP/patfacts.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role Application source.
+neighbor uses | newmod | imports its helpers | src/a/f3.py#newmod.helpers
+FEOF
+bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/patfacts.txt" >/dev/null 2>&1
+assert "pattern evidence present in file -> render accepts" $? ""
+grep -q 'evidence=src/a/f3.py#newmod.helpers -->' "$B2"
+assert "the pattern travels into the relation marker" $? ""
+cat > "$TMP/patbad.txt" <<'FEOF'
+blueprint-facts 1
+section src
+role Application source.
+neighbor uses | newmod | invented | src/a/f3.py#does_not_appear
+FEOF
+perr="$(bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/patbad.txt" 2>&1)"; prc=$?
+{ [ "$prc" = 1 ] && echo "$perr" | grep -q "evidence pattern not found in src/a/f3.py: 'does_not_appear'"; }
+assert "pattern absent from file -> render rejects the claim" $? "rc=$prc $perr"
+
 # 18. render validation: every bad claim rejected, map untouched
 cat > "$TMP/badfacts.txt" <<'FEOF'
 blueprint-facts 1

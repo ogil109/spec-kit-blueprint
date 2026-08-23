@@ -274,6 +274,19 @@ gate "${F[@]}"
   assert "vanished evidence -> SOFT relation-evidence issue" $? "rc=$RC $OUT"
 gate --strict "${F[@]}"; [ "$RC" = 1 ]; assert "relation issues block under --strict" $? "rc=$RC"
 
+# semantic rot: the evidence FILE survives but the demonstrating content is
+# edited away — a bare path stays green forever; a #pattern catches it.
+grep -v 'evidence=src/b/removed.py' "$R9/blueprint.md" > "$R9/blueprint.md.tmp" && mv "$R9/blueprint.md.tmp" "$R9/blueprint.md"
+printf '%s\n' '<!-- blueprint:relation from=src/a to=src/b kind=uses evidence=src/a/main.py#import_b -->' >> "$R9/blueprint.md"
+printf 'import_b = __import__("b")\n' > "$R9/src/a/main.py"
+git -C "$R9" add -A; git -C "$R9" commit -qm withpattern
+gate "${F[@]}"; [ "$RC" = 0 ]; assert "pattern present at HEAD -> relation green" $? "rc=$RC $OUT"
+printf 'nothing_here = 1\n' > "$R9/src/a/main.py"
+git -C "$R9" add -A; git -C "$R9" commit -qm "refactor away the import"
+gate "${F[@]}"
+{ echo "$OUT" | grep -q "RELATION-EVIDENCE.*'import_b' not in src/a/main.py" && [ "$RC" = 0 ]; }
+assert "file kept, pattern gone -> semantic rot flagged" $? "rc=$RC $OUT"
+
 echo
 echo "check/gate tests: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

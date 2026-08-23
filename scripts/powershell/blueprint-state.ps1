@@ -217,7 +217,19 @@ if ($Command -eq "check") {
       foreach ($ep in @($r.from, $r.to)) {
         if ($secIds -notcontains $ep) { $issues += [pscustomobject]@{ severity="soft"; type="relation"; target="$($r.from)->$($r.to)"; detail="relation endpoint not on the map: $ep"; run="/speckit.blueprint-index.recover"; kind="authored" } }
       }
-      if ((Test-Git) -and -not (Get-CurSha $r.ev)) { $issues += [pscustomobject]@{ severity="soft"; type="relation-evidence"; target="$($r.from)->$($r.to)"; detail="relation evidence path gone: $($r.ev)"; run="/speckit.blueprint-index.recover"; kind="authored" } }
+      $evPath = $r.ev.Split("#")[0]
+      $evPat = if ($r.ev.Contains("#")) { $r.ev.Substring($r.ev.IndexOf("#") + 1) } else { "" }
+      if (Test-Git) {
+        if (-not (Get-CurSha $evPath)) { $issues += [pscustomobject]@{ severity="soft"; type="relation-evidence"; target="$($r.from)->$($r.to)"; detail="relation evidence path gone: $evPath"; run="/speckit.blueprint-index.recover"; kind="authored" } }
+        else {
+          if ($evPat -ne "") {
+            $content = git -C $Root show "HEAD:$evPath" 2>$null
+            $hit = $false
+            foreach ($cl in @($content)) { if (([string]$cl).Contains($evPat)) { $hit = $true; break } }
+            if (-not $hit) { $issues += [pscustomobject]@{ severity="soft"; type="relation-evidence"; target="$($r.from)->$($r.to)"; detail="evidence no longer demonstrates the edge: '$evPat' not in $evPath"; run="/speckit.blueprint-index.recover"; kind="authored" } }
+          }
+        }
+      }
     }
   }
 

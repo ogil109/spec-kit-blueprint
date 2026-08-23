@@ -326,12 +326,19 @@ if [ "$CMD" = "check" ]; then
       rfrom="$(echo "$rel" | sed -E 's/.*from=([^ ]+).*/\1/')"
       rto="$(echo "$rel" | sed -E 's/.*to=([^ ]+).*/\1/')"
       rev_="$(echo "$rel" | sed -E 's/.*evidence=([^ ]+).*/\1/')"
+      revpath="${rev_%%#*}"; revpat=""
+      case "$rev_" in *"#"*) revpat="${rev_#*#}" ;; esac
       for ep in "$rfrom" "$rto"; do
         printf '%s\n' "$sec_ids" | grep -qxF "$ep" || \
           add soft relation "$rfrom->$rto" "relation endpoint not on the map: $ep" "/speckit.blueprint-index.recover" authored
       done
-      if is_git && [ -z "$(current_sha "$rev_")" ]; then
-        add soft relation-evidence "$rfrom->$rto" "relation evidence path gone: $rev_" "/speckit.blueprint-index.recover" authored
+      if is_git; then
+        if [ -z "$(current_sha "$revpath")" ]; then
+          add soft relation-evidence "$rfrom->$rto" "relation evidence path gone: $revpath" "/speckit.blueprint-index.recover" authored
+        elif [ -n "$revpat" ] && ! git -C "$ROOT" show "HEAD:$revpath" 2>/dev/null | grep -qF -- "$revpat"; then
+          # the file survived but the demonstrating content did not — semantic rot
+          add soft relation-evidence "$rfrom->$rto" "evidence no longer demonstrates the edge: '$revpat' not in $revpath" "/speckit.blueprint-index.recover" authored
+        fi
       fi
     done < <(relation_markers)
   fi
