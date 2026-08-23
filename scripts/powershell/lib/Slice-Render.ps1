@@ -44,7 +44,6 @@ if ($Command -eq "render") {
   $errs = [System.Collections.Generic.List[string]]::new()
   $blocks = [System.Collections.Generic.List[pscustomobject]]::new()   # ordered
   $edges = [System.Collections.Generic.List[string]]::new()            # from US kind US to US why US ev
-  $concernNames = [System.Collections.Generic.List[string]]::new()
   $sectionCount = 0
   $cur = $null
   function Flush-Cur { if ($script:cur) { if (-not $script:cur.role) { $script:errs.Add("'$($script:cur.name)': role is required") }; $script:blocks.Add($script:cur); $script:cur = $null } }
@@ -61,41 +60,34 @@ if ($Command -eq "render") {
       if ($st -eq "code" -or $st -eq "context") { $sectionCount++ }
       elseif ($st -eq "") { $errs.Add("section '$nm' is not on the map (scaffold first; check the heading)"); $st = "code" }
       else { $errs.Add("section '$nm' is $st-owned — render only writes code/context sections") }
-      $cur = [pscustomobject]@{ name = $nm; kind = "section"; state = $st; role = ""; facets = [System.Collections.Generic.List[string]]::new(); notes = [System.Collections.Generic.List[string]]::new() }
+      $cur = [pscustomobject]@{ name = $nm; state = $st; role = ""; facets = [System.Collections.Generic.List[string]]::new(); notes = [System.Collections.Generic.List[string]]::new() }
       continue
     }
-    if ($line -match '^concern (.*)$') {
-      Flush-Cur
-      $nm = $Matches[1]
-      if (($blocks | Where-Object { $_.name -eq $nm }).Count -gt 0) { $errs.Add("duplicate block for '$nm' — a facts file declares each section once") }
-      if ($nm.Contains(" ")) { $errs.Add("concern '$nm' must be a space-free name") } else { $concernNames.Add($nm) }
-      $cur = [pscustomobject]@{ name = $nm; kind = "concern"; state = "context"; role = ""; facets = [System.Collections.Generic.List[string]]::new(); notes = [System.Collections.Generic.List[string]]::new() }
+    if ($line -match '^concern ') {
+      $errs.Add("facts line ${lineNo}: the concern directive was removed — model cross-cutting facilities as sections with crosscuts edges")
       continue
     }
-    if ($line -match '^role (.*)$') { if (-not $cur) { $errs.Add("role before any section/concern"); continue }; $cur.role = $Matches[1]; continue }
-    if ($line -match '^note (.*)$') { if (-not $cur) { $errs.Add("note before any section/concern"); continue }; $cur.notes.Add($Matches[1]); continue }
+    if ($line -match '^role (.*)$') { if (-not $cur) { $errs.Add("role before any section"); continue }; $cur.role = $Matches[1]; continue }
+    if ($line -match '^note (.*)$') { if (-not $cur) { $errs.Add("note before any section"); continue }; $cur.notes.Add($Matches[1]); continue }
     if ($line -match '^facet (.*)$') {
-      if (-not $cur) { $errs.Add("facet before any section/concern"); continue }
+      if (-not $cur) { $errs.Add("facet before any section"); continue }
       $parts = $Matches[1] -split ' \| '
       if ($parts.Count -ne 3) { $errs.Add("facts line ${lineNo}: facet needs: <Label> | <text> | <evidence>"); continue }
       $ev = $parts[2]
-      $juris = if ($cur.kind -eq "section") { $cur.name } else { "" }
-      Validate-Ev "'$($cur.name)' facet" $ev $juris
+      Validate-Ev "'$($cur.name)' facet" $ev $cur.name
       $cur.facets.Add("$($parts[0])`u{1f}$($parts[1])`u{1f}$ev")
       continue
     }
     if ($line -match '^neighbor (.*)$') {
-      if (-not $cur) { $errs.Add("neighbor before any section/concern"); continue }
+      if (-not $cur) { $errs.Add("neighbor before any section"); continue }
       $parts = $Matches[1] -split ' \| '
       if ($parts.Count -ne 4) { $errs.Add("facts line ${lineNo}: neighbor needs: <kind> | <to> | <why> | <evidence>"); continue }
       $kind = $parts[0]; $to = $parts[1]; $why = $parts[2]; $ev = $parts[3]
       if (@("uses", "crosscuts") -notcontains $kind) { $errs.Add("'$($cur.name)' neighbor kind must be uses|crosscuts: $kind"); continue }
       $tost = if ($headState.ContainsKey($to)) { $headState[$to] } else { "" }
-      $tok = ($tost -ne "") -or ($concernNames -contains $to)
-      if (-not $tok) { $errs.Add("'$($cur.name)' neighbor endpoint not on the map: $to") }
-      $juris = ""
-      if ($kind -eq "uses" -and $cur.kind -eq "section") { $juris = $cur.name }
-      elseif ($kind -eq "crosscuts" -and $tost -ne "") { $juris = $to }
+      if ($tost -eq "") { $errs.Add("'$($cur.name)' neighbor endpoint not on the map: $to") }
+      $juris = $cur.name
+      if ($kind -eq "crosscuts") { $juris = if ($tost -ne "") { $to } else { "" } }
       Validate-Ev "'$($cur.name)' $kind-edge" $ev $juris
       $edges.Add("$($cur.name)`u{1f}$kind`u{1f}$to`u{1f}$why`u{1f}$ev")
       continue
@@ -137,7 +129,7 @@ if ($Command -eq "render") {
     $f = $ex.Split("`u{1f}")
     if ($owned.Contains($f[0])) { continue }
     $fromOk = $headState.ContainsKey($f[0])
-    $toOk = $headState.ContainsKey($f[2]) -or $owned.Contains($f[2])
+    $toOk = $headState.ContainsKey($f[2])
     if (-not ($fromOk -and $toOk)) { $dropped++; continue }
     $edges.Add($ex)
   }
@@ -184,7 +176,7 @@ if ($Command -eq "render") {
     if ($line -match '^- `([^`]+)`') {
       $pth = $Matches[1]
       $tocSeen = $true; [void]$tocPresent.Add($pth)
-      if ($byName.ContainsKey($pth) -and $byName[$pth].kind -eq "section") {
+      if ($byName.ContainsKey($pth)) {
         $rem = if ($line -match ' \(remainder\)') { " (remainder)" } else { "" }
         $status = if ($byName[$pth].state -eq "context") { "**context**" } else { "**code-owned**" }
         [void]$sb.Append("- ``$pth``$rem — $(First-Sentence $byName[$pth].role); $status`n")
@@ -194,7 +186,7 @@ if ($Command -eq "render") {
     if ($inToc -and $tocSeen -and -not $tocFlushed -and $line -match '^\s*$') {
       foreach ($b in $blocks) {
         if (-not $tocPresent.Contains($b.name)) {
-          $status = if ($b.kind -eq "concern" -or $b.state -eq "context") { "**context**" } else { "**code-owned**" }
+          $status = if ($b.state -eq "context") { "**context**" } else { "**code-owned**" }
           [void]$sb.Append("- ``$($b.name)`` — $(First-Sentence $b.role); $status`n")
         }
       }
@@ -203,15 +195,12 @@ if ($Command -eq "render") {
     if ($line -match '^## ') {
       $h = ($line -replace '^##\s+', '' -replace ' \(remainder\)$', '')
       $inToc = ($line -eq "## Table of Contents")
-      if ($mode -eq "skiprel" -or $mode -eq "skipconcern") { $mode = "copy" }
+      if ($mode -eq "skiprel") { $mode = "copy" }
       if ($h -eq $relHead -and $rtext -ne "") { [void]$sb.Append($rtext); $mode = "skiprel"; continue }
-      if ($byName.ContainsKey($h) -and $byName[$h].kind -eq "concern") {
-        [void]$sb.Append("## $h`n<!-- blueprint:section state=context -->`n" + (Render-Body $h) + "`n---`n`n"); $mode = "skipconcern"; continue
-      }
-      if ($byName.ContainsKey($h) -and $byName[$h].kind -eq "section") { [void]$sb.Append($line + "`n"); $mode = "header"; $curh = $h; continue }
+      if ($byName.ContainsKey($h)) { [void]$sb.Append($line + "`n"); $mode = "header"; $curh = $h; continue }
       [void]$sb.Append($line + "`n"); $mode = "copy"; continue
     }
-    if ($mode -eq "skiprel" -or $mode -eq "skipconcern") { continue }
+    if ($mode -eq "skiprel") { continue }
     if ($mode -eq "header") {
       if ($line -match '^<!-- blueprint:' -or $line -match '^> ') { [void]$sb.Append($line + "`n"); continue }
       $mode = "prose"
@@ -223,18 +212,13 @@ if ($Command -eq "render") {
     [void]$sb.Append($line + "`n")
   }
   if ($mode -eq "prose") { [void]$sb.Append((Render-Body $curh)) }
-  # append concerns/relations that did not exist yet
+  # append the relations section when it did not exist yet
   $orig = [System.IO.File]::ReadAllText($Blueprint)
-  foreach ($c in $concernNames) {
-    if ($orig -notmatch "(?m)^## $([regex]::Escape($c))( |$)") {
-      [void]$sb.Append("## $c`n<!-- blueprint:section state=context -->`n" + (Render-Body $c) + "`n---`n`n")
-    }
-  }
   if ($rtext -ne "" -and $orig -notmatch "(?m)^## Architecture — subsystem relations$") { [void]$sb.Append($rtext) }
   [System.IO.File]::WriteAllText($Blueprint, $sb.ToString(), [System.Text.UTF8Encoding]::new($false))
   $rel = $Blueprint.Replace("$Root/", "").Replace("$Root\", "")
   $dropnote = if ($dropped -gt 0) { " (dropped $dropped dangling edge(s))" } else { "" }
-  WL "rendered $sectionCount section(s), $($concernNames.Count) concern(s), $($relLines.Count) relation(s)$dropnote → $rel"
+  WL "rendered $sectionCount section(s), $($relLines.Count) relation(s)$dropnote → $rel"
   WL "next: restamp, then verify + check"
   Flush
   exit 0

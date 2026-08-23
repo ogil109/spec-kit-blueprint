@@ -134,7 +134,8 @@ guaranteed by never letting you write structure at all:
    each section per the architecture-recovery procedure in
    `templates/section-anatomy.md` (inventory → boundary-before-depth → write →
    self-check) and emit one facts file — per section a `role`, evidence-anchored
-   `facet` bullets, and `neighbor` edges; plus any cross-cutting `concern`s.
+   `facet` bullets, and `neighbor` edges (including `crosscuts` edges for
+   cross-cutting facilities).
    Then run
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh render --facts <file>`
    (or the PowerShell port): it machine-validates every claim (sections exist,

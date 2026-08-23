@@ -1,5 +1,5 @@
 ---
-description: "Stage-2 architecture recovery: an expert codebase-analysis agent derives how the machine-detected subsystems relate — dependency edges and cross-cutting concerns — as evidence-anchored, oracle-validated relation markers"
+description: "Stage-2 architecture recovery: an expert codebase-analysis agent derives how the machine-detected subsystems relate — dependency and cross-cutting edges — as evidence-anchored, oracle-validated relation markers"
 ---
 
 # Recover Subsystem Relations (the intelligence layer)
@@ -11,14 +11,14 @@ are** — that is settled input, not yours to revisit. Your job is the single
 recovery pass over that structure: for every section, **what it is** (the
 role + evidence-anchored digest, per `templates/section-anatomy.md`), and
 across sections, **how they relate** — which depends on which, in what
-direction, and which cross-cutting concerns thread through them — all emitted
+direction, and which cross-cutting facilities thread through them — all emitted
 as one facts file and recorded so the `check` gate can defend it against
 decay.
 
 The division of labor is strict:
 
 - **Semantic truth** (is this edge real? is it architectural or incidental?
-  which direction? is this a genuine cross-cutting concern?) — yours. This is
+  which direction? is this a genuine cross-cutting facility?) — yours. This is
   exactly the judgment no deterministic tool can make.
 - **Well-formedness and freshness** (do both endpoints exist on the map? does
   the evidence path exist in git?) — the oracle's. `check` validates every
@@ -51,16 +51,14 @@ role <role sentence(s)>                               # required
 facet <Label> | <text> | <evidence-path>              # digest bullet, evidence-anchored
 neighbor <uses|crosscuts> | <to> | <why> | <evidence> # a relation edge
 note <free text>                                      # optional, repeatable
-concern <name>                                        # creates a context section; space-free;
-                                                      # declare before edges that target it
 ```
 
 What the renderer machine-checks before writing a byte (all violations listed,
 exit 1, map untouched): every `section` exists on the map as code/context;
 every evidence path is tracked in git; a facet's evidence and a `uses` edge's
 evidence sit under the *from* section's own markers; a `crosscuts` edge's
-evidence sits under the *to* section's markers; endpoints are managed sections
-or declared concerns. Semantics:
+evidence sits under the *to* section's markers; endpoints are managed
+sections. Semantics:
 
 - `uses` — `from` depends on `to` (calls, imports, consumes its data or
   contract). Direction matters: record the dependency as it exists.
@@ -95,16 +93,13 @@ or declared concerns. Semantics:
    scaffolding, and re-exports that merely forward. Prefer few, true edges over
    exhaustive ones — this is a map, not a call graph.
 
-4. **Identify cross-cutting concerns.** A facility consumed by three or more
-   sections (config, logging, auth, telemetry) is a concern: record
-   `kind=crosscuts` edges from its section to each section it threads through,
-   with evidence in the *target*. If the concern has no section of its own
-   (fragments spread across directories), create a **context section** for it —
-   kebab-case, space-free heading (e.g. `## observability`), prose per the
-   section anatomy, **no code markers** (it owns no exclusive paths; the gate's
-   coverage is unaffected) — and hang the `crosscuts` edges off it. This is how
-   a concern no directory cut can express still becomes a first-class, named,
-   machine-validated node on the map.
+4. **Identify cross-cutting facilities.** A facility consumed by three or
+   more sections (config, logging, auth, telemetry) crosscuts the map: record
+   `kind=crosscuts` edges from its section to each section it threads
+   through, with evidence in the *target*. Both endpoints must be sections
+   that exist on the map — a facility owning no directory at all cannot be an
+   endpoint (that construct existed once and was removed for lack of real
+   use; see the decision inventory).
 
 5. **Read the graph like an architect (the DSM pass).** With the edges
    recorded, order the subsystems into layers — dependencies should point one
@@ -119,9 +114,8 @@ or declared concerns. Semantics:
 6. **Render, don't edit.** Run
    `bash .specify/extensions/blueprint-index/scripts/bash/blueprint-slice.sh render --facts <file>`
    (or the PowerShell port). The renderer writes the section digests, the TOC
-   one-liners, any concern sections, and the `## Architecture — subsystem
-   relations` home (table + markers, deterministically sorted) — all from your
-   facts. It is idempotent and partial: sections you did not name keep their
+   one-liners, and the `## Architecture — subsystem relations` home (table +
+   markers, deterministically sorted) — all from your facts. It is idempotent and partial: sections you did not name keep their
    current prose.
 
 7. **Idempotent repair.** Rendering is per-block and needs no bookkeeping
@@ -132,8 +126,8 @@ or declared concerns. Semantics:
 
 8. **Close the loop.** After render: restamp, then `blueprint-state.sh check`
    must be free of `relation`/`relation-evidence` issues and
-   `blueprint-slice.sh verify` must still conform (rendered relations and
-   concern sections carry no code markers, so they are invisible to it). No
+   `blueprint-slice.sh verify` must still conform (the rendered relations
+   section carries no code markers, so it is invisible to it). No
    `TODO(prose)` placeholder may remain for sections in scope.
 
 ## Report Back
@@ -145,7 +139,6 @@ or declared concerns. Semantics:
   your judgment shows and what a reviewer most needs to see.
 - The **layering read**: layer ordering, any cycles (highlighted), any hubs
   and your platform-or-grab-bag verdict on each.
-- Concerns identified (and any concern sections created).
 - `check` result.
 
 ## Guardrails

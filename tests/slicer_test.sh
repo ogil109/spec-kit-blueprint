@@ -259,16 +259,16 @@ facet Entry | `src/a/f1.py` boots everything. | src/a/f1.py
 neighbor uses | newmod | consumes its helpers | src/a/f1.py
 section newmod
 role A new module.
-concern shared-config
-role Where configuration lives and who reads it.
-neighbor crosscuts | src | config read at import time | src/a/f2.py
+section docs
+role The documentation tree.
+neighbor crosscuts | src | config documented at import time | src/a/f2.py
 FEOF
 bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/facts.txt" >/dev/null 2>&1
 assert "render accepts validated facts (exit 0)" $? ""
-{ grep -q 'Application source. At a glance:' "$B2"   && grep -q '<!-- blueprint:relation from=src to=newmod kind=uses evidence=src/a/f1.py -->' "$B2"   && grep -q '<!-- blueprint:relation from=shared-config to=src kind=crosscuts evidence=src/a/f2.py -->' "$B2"   && grep -q '^## shared-config$' "$B2"   && grep -q -- '- `src` — Application source; \*\*code-owned\*\*' "$B2"; }
-assert "render writes prose + relations + concern + TOC from one facts source" $? "$(grep -n 'Application source' "$B2")"
-grep -q 'TODO(prose).*`docs`' "$B2"
-assert "sections absent from facts keep their placeholder (partial render)" $? ""
+{ grep -q 'Application source. At a glance:' "$B2"   && grep -q '<!-- blueprint:relation from=src to=newmod kind=uses evidence=src/a/f1.py -->' "$B2"   && grep -q '<!-- blueprint:relation from=docs to=src kind=crosscuts evidence=src/a/f2.py -->' "$B2"   && grep -q -- '- `src` — Application source; \*\*code-owned\*\*' "$B2"; }
+assert "render writes prose + relations + TOC from one facts source" $? "$(grep -n 'Application source' "$B2")"
+grep -q 'The documentation tree.' "$B2"
+assert "context sections render from facts like any other" $? ""
 
 # 17. render is idempotent
 cp "$B2" "$B2.r1"
@@ -336,7 +336,8 @@ FEOF
 bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/repair.txt" >/dev/null 2>&1
 { grep -q 'from=newmod to=src kind=uses' "$B2" \
   && grep -q 'from=src to=newmod kind=uses evidence=src/a/f3.py#newmod.helpers' "$B2" \
-  && grep -q 'from=shared-config to=src kind=crosscuts' "$B2"; }
+  && grep -q 'from=docs to=src kind=crosscuts' "$B2" \
+  && grep -q '^Application source\.' "$B2"; }
 assert "partial repair adds its edge and preserves every other section's" $? "$(grep 'blueprint:relation' "$B2")"
 
 # 21. a block with ZERO neighbors is authoritative too: it deletes its edges
@@ -387,6 +388,16 @@ assert "duplicate section block -> rejected (was silent last-wins)" $? "rc=$drc 
 #     entry (additive re-onboard, render-created concern) is appended to the TOC
 grep -q -- '- `newmod`' "$B2"
 assert "re-onboarded/appended sections gain a TOC entry on render" $? "$(sed -n '/Table of Contents/,/^---$/p' "$B2")"
+
+# 25. the concern directive is removed: old facts files get a migration error
+cat > "$TMP/oldconcern.txt" <<'FEOF'
+blueprint-facts 1
+concern observability
+role Old-style concern block.
+FEOF
+cerr="$(bash "$SLICER" render --root "$R2" --blueprint "$B2" --facts "$TMP/oldconcern.txt" 2>&1)"; crc=$?
+{ [ "$crc" = 1 ] && echo "$cerr" | grep -q "the concern directive was removed"; }
+assert "concern directive -> targeted migration error (exit 1)" $? "rc=$crc $cerr"
 
 echo
 echo "slicer tests: $PASS passed, $FAIL failed"
