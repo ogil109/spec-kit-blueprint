@@ -227,6 +227,38 @@ if ($Command -eq "render") {
     exit 1
   }
 
+  # Edge repair is per-block and INTERNAL (bash parity): a facts block owns its
+  # section's outgoing edges; edges from unnamed sections are preserved by
+  # round-tripping the machine-written relations home; preserved edges with
+  # endpoints gone from the map are dropped.
+  $owned = [System.Collections.Generic.HashSet[string]]::new()
+  foreach ($b in $blocks) { [void]$owned.Add($b.name) }
+  $dropped = 0
+  $inRel = $false; $whyMap = @{}
+  $exEdges = [System.Collections.Generic.List[string]]::new()
+  foreach ($line in [System.IO.File]::ReadAllLines($Blueprint)) {
+    if ($line -match '^## ') { $inRel = ($line -eq "## Architecture — subsystem relations"); continue }
+    if ($inRel -and $line -match '^\| ' -and $line -notmatch '^\| from \|' -and $line -notmatch '^\|---') {
+      $row = $line -replace '^\| ', '' -replace ' \|$', ''
+      $f = $row -split ' \| '
+      if ($f.Count -eq 4) { $whyMap["$($f[0])`u{1f}$($f[1])`u{1f}$($f[2])"] = $f[3] }
+      continue
+    }
+    if ($inRel -and $line -match '<!-- blueprint:relation from=(\S+) to=(\S+) kind=(\S+) evidence=(\S+) -->') {
+      $k = "$($Matches[1])`u{1f}$($Matches[3])`u{1f}$($Matches[2])"
+      $w = if ($whyMap.ContainsKey($k)) { $whyMap[$k] } else { "" }
+      $exEdges.Add("$($Matches[1])`u{1f}$($Matches[3])`u{1f}$($Matches[2])`u{1f}$w`u{1f}$($Matches[4])")
+    }
+  }
+  foreach ($ex in $exEdges) {
+    $f = $ex.Split("`u{1f}")
+    if ($owned.Contains($f[0])) { continue }
+    $fromOk = $headState.ContainsKey($f[0])
+    $toOk = $headState.ContainsKey($f[2]) -or $owned.Contains($f[2])
+    if (-not ($fromOk -and $toOk)) { $dropped++; continue }
+    $edges.Add($ex)
+  }
+
   # relations: full-line ordinal sort, dedupe by from|kind|to keeping first
   $relLines = @()
   if ($edges.Count -gt 0) {
@@ -305,7 +337,8 @@ if ($Command -eq "render") {
   if ($rtext -ne "" -and $orig -notmatch "(?m)^## Architecture — subsystem relations$") { [void]$sb.Append($rtext) }
   [System.IO.File]::WriteAllText($Blueprint, $sb.ToString(), [System.Text.UTF8Encoding]::new($false))
   $rel = $Blueprint.Replace("$Root/", "").Replace("$Root\", "")
-  WL "rendered $sectionCount section(s), $($concernNames.Count) concern(s), $($relLines.Count) relation(s) → $rel"
+  $dropnote = if ($dropped -gt 0) { " (dropped $dropped dangling edge(s))" } else { "" }
+  WL "rendered $sectionCount section(s), $($concernNames.Count) concern(s), $($relLines.Count) relation(s)$dropnote → $rel"
   WL "next: restamp, then verify + check"
   Flush
   exit 0

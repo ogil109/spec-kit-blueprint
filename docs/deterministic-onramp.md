@@ -332,8 +332,11 @@ cannot contradict by construction; recovery runs are compared by diffing
 facts, not wording — convergence became measurable; the LLM cost of the
 on-ramp halved; and the agent no longer edits the map at all — the last
 hand-edit lane in the brownfield flow is gone. Render is idempotent and
-partial for section prose (unnamed sections keep their content; the relations
-home is rebuilt from the facts, so edge repairs carry the full edge set).
+per-block authoritative: a facts block owns its section's prose and outgoing
+edges, and everything unnamed is preserved — the relations home is merged
+internally by round-tripping render's own machine-written table, so no repair
+bookkeeping ever reaches the caller (dangling preserved edges are dropped and
+reported).
 
 The review also flagged that evidence validation was existence-level only — a
 `uses` edge's evidence proved a *file* existed, not that it demonstrated the
