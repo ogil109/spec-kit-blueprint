@@ -314,6 +314,27 @@ the map level — concerns are now named, evidence-anchored, machine-validated
 nodes — while stamped baselines on concern nodes (content digests over
 arbitrary path sets) remain future marker-format work.
 
+## Adopted from adversarial review: facts-then-render
+
+A design review of the pipeline surfaced three related defects: the prose pass
+and the relations pass walked the same evidence twice; a digest's "Neighbors"
+bullet and the corresponding relation marker stated one fact in two places
+with no consistency check between them; and prose convergence across runs was
+asserted but unmeasurable. The adopted fix collapses the judgment lanes into
+**one agent pass emitting a facts file** (`role` / `facet` / `neighbor` /
+`note` / `concern`, line-based so the renderer stays dependency-free), with
+`blueprint-slice.sh render` — both ports, byte-parity-tested — validating
+every claim (sections exist; evidence tracked in git and covered by the right
+section's markers; endpoints managed; all violations reported at once, nothing
+written) and then writing the prose, TOC one-liners, concern sections, and
+relation markers from the same source. Consequences: prose and machine edges
+cannot contradict by construction; recovery runs are compared by diffing
+facts, not wording — convergence became measurable; the LLM cost of the
+on-ramp halved; and the agent no longer edits the map at all — the last
+hand-edit lane in the brownfield flow is gone. Render is idempotent and
+partial (unnamed sections keep their prose), so repair flows re-emit only
+what changed.
+
 ## Open questions (deliberately not resolved in this spike)
 
 1. **Cross-cutting concerns.** A directory partition cannot express `compat`
