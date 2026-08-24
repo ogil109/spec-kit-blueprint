@@ -8,6 +8,50 @@ do not hand-edit, it is rewritten in full. This project adheres to
 Each release's narrative — why a change was made, and its caveats — is in the
 [GitHub release notes](https://github.com/ogil109/spec-kit-blueprint/releases).
 
+## v0.3.0 (2026-08-24)
+
+### BREAKING CHANGE
+
+- 'blueprint-slice.sh verify' no longer exists; use
+'blueprint-state.sh check' — structure divergence appears as SOFT
+'structure' issues (--strict promotes).
+- a blueprint living at docs/overview.md is no longer
+auto-detected — set blueprint.path in blueprint-config.yml.
+- the 'concern' facts directive is no longer accepted;
+relation endpoints must be managed sections.
+
+### Added
+
+- **render**: accept distilled facts blocks — lane parity (D3, partial)
+- **oracle**: fold structure conformance into the check gate; remove the verify subcommand
+- **render**: remove the concern directive — cross-cutters are sections with crosscuts edges
+- **config**: validate the configuration like every other input surface
+- **render**: falsifiable evidence — path#pattern validated at render and re-checked by the gate
+- **render**: facts-then-render — one validated source for prose and relations
+- **ps**: full PowerShell port of the partitioner at byte parity, CI-enforced
+- **recover**: stage-2 architecture recovery — the intelligence layer
+- **init**: hybrid on-ramp — brownfield seeding from code AND docs
+- **anatomy**: shipped architecture-recovery contract — one section shape for both on-ramps
+- **slicer**: scaffold — the map skeleton is machine-written, closing the transcription gap
+- **slicer**: downstream-lifecycle e2e; subtraction leaves holes that force descent
+- **slicer**: verify — machine-checked structure conformance for the on-ramp
+- **slicer**: pin_dirs — atomic sections; guard coverage behind an existing map
+- **init**: computed structure for the brownfield on-ramp
+- **oracle**: widen the coverage scan to all top-level directories
+- **slicer**: deterministic brownfield partitioner (blueprint-slice.sh)
+
+### Changed
+
+- **tests**: the filesystem is the suite roster
+- **scripts**: thin entries over single-responsibility lib modules, both ports
+- **render**: per-block edge authority — repair bookkeeping becomes internal
+
+### Fixed
+
+- **oracle**: an explicit --blueprint never silently falls back
+- **oracle**: trim blueprint auto-detect to canonical + docs/blueprint.md
+- **render**: three defects found by a live pandas e2e — SIGPIPE inversion, duplicate blocks, TOC drift
+
 ## v0.2.1 (2026-08-22)
 
 ### Fixed
